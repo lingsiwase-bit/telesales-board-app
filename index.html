@@ -552,8 +552,7 @@ tr.member-row.is-selected td{background:var(--accent-soft, var(--surface-3))}
         <div class="acq-form">
           <div class="acq-field"><label>獲得日</label><input type="date" id="acqDate"></div>
           <div class="acq-field"><label>顧客名</label><input type="text" id="acqCustomer" placeholder="例：ヨネザワ タカヒロ様"></div>
-          <div class="acq-field"><label>商材</label><input type="text" id="acqProduct" placeholder="例：家電"></div>
-          <div class="acq-field"><label>実施日</label><input type="date" id="acqEventDate"></div>
+          <div class="acq-field"><label>家電実施日</label><input type="date" id="acqEventDate"></div>
           <div class="acq-times">
             <div class="acq-field"><label>開始</label><input type="time" id="acqStart"></div>
             <div class="time-tilde">〜</div>
@@ -1440,7 +1439,6 @@ const Sales = (() => {
 
   function clearAcqForm() {
     document.getElementById('acqCustomer').value = '';
-    document.getElementById('acqProduct').value = '';
     document.getElementById('acqStart').value = '';
     document.getElementById('acqEnd').value = '';
     document.getElementById('acqDate').value = todayStr();
@@ -1458,13 +1456,11 @@ const Sales = (() => {
     const payload = {
       acqDate: document.getElementById('acqDate').value,
       customer: document.getElementById('acqCustomer').value.trim(),
-      product: document.getElementById('acqProduct').value.trim(),
       eventDate: document.getElementById('acqEventDate').value,
       startTime: document.getElementById('acqStart').value,
       endTime: document.getElementById('acqEnd').value,
     };
     if (!payload.customer) { showAcqError('顧客名を入力してください'); return; }
-    if (!payload.product) { showAcqError('商材を入力してください'); return; }
     document.getElementById('acqError').hidden = true;
     btn.disabled = true;
     btn.textContent = '記録中…';
@@ -1498,7 +1494,7 @@ const Sales = (() => {
         const when = [r.eventDate, [r.startTime, r.endTime].filter(Boolean).join('-')].filter(Boolean).join(' ');
         const sub = [when, r.recordedAt ? r.recordedAt + ' 記録' : ''].filter(Boolean).join('・');
         return `<div class="acq-item">
-          <div class="acq-item-main"><b>${escapeHtml(r.customer)}</b><span>${escapeHtml(r.product)}</span></div>
+          <div class="acq-item-main"><b>${escapeHtml(r.customer)}</b></div>
           <div class="acq-item-sub">${escapeHtml(sub)}</div>
         </div>`;
       }).join('');
