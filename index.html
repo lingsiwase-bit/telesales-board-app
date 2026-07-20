@@ -8,7 +8,7 @@
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icons/icon-180.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="T-Div">
 <style>
 /*
@@ -337,7 +337,9 @@ input{font-family:inherit; color:inherit}
 .appbar{
   position:sticky; top:0; z-index:40;
   display:flex; align-items:center; gap:16px;
-  padding:12px 20px; background:var(--surface);
+  /* iOS スタンドアロン(ホーム画面起動)でステータスバー/ノッチと重ならないよう上部セーフエリアを確保 */
+  padding:calc(12px + env(safe-area-inset-top, 0px)) 20px 12px 20px;
+  background:var(--surface);
   border-bottom:1px solid var(--line);
 }
 .brand{display:flex; align-items:center; gap:10px; min-width:0}
