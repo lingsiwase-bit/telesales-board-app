@@ -1394,7 +1394,9 @@ const Sales = (() => {
     document.getElementById('workedH').textContent = hours.toFixed(1) + ' h';
     const invalid = !(draft.workEnd > draft.workStart);
     document.getElementById('timeError').hidden = !invalid;
-    document.getElementById('submitOpenBtn').disabled = invalid;
+    // Phase4: 送信ボタンは無効化しない（常に押せる）。稼働時間が不正なときは
+    // openConfirm() で理由を明示して中断する。グレーアウトだけだと「なぜ押せない
+    // のか」が伝わらず操作不能に見えるため。
   }
 
   function restoreDraftToInputs() {
@@ -1617,6 +1619,19 @@ const Sales = (() => {
 
   /* ---------- 確認シート・送信 ---------- */
   function openConfirm() {
+    // 稼働時間が未入力/逆転しているときは黙って止めず、理由を出して該当欄へ誘導する
+    if (!draft.workStart || !draft.workEnd) {
+      showToast('稼働時間の開始・終了を入力してください', true);
+      document.getElementById(!draft.workStart ? 'tStart' : 'tEnd').focus();
+      return;
+    }
+    if (!(draft.workEnd > draft.workStart)) {
+      showToast('稼働時間の「終了」は「開始」より後にしてください', true);
+      document.getElementById('timeError').hidden = false;
+      document.getElementById('tEnd').focus();
+      return;
+    }
+
     pendingOverwriteRow = null;
     document.getElementById('confirmWarn').hidden = true;
     const btn = document.getElementById('submitConfirmBtn');
