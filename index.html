@@ -16,31 +16,31 @@
  * 値は docs/mockup.html の :root をそのまま採用している。独自判断で変更しないこと。
  */
 :root{
-  --bg:#f3f5f7; --surface:#ffffff; --surface-2:#eaeef2; --surface-3:#f7f9fb;
-  --ink:#10151c; --ink-2:#4a5561; --ink-3:#7f8a95;
-  --line:#e2e7ec; --line-soft:#ecf0f4;
-  --accent:#2a78d6; --accent-strong:#1c5cab; --on-accent:#ffffff;
+  --bg:#f4f6f9; --surface:#ffffff; --surface-2:#eef1f5; --surface-3:#f7f9fb;
+  --ink:#0f141b; --ink-2:#4a5561; --ink-3:#828d99;
+  --line:#e6eaf0; --line-soft:#eef1f5;
+  --accent:#2a78d6; --accent-2:#3f8ce4; --accent-strong:#1c5cab; --on-accent:#ffffff;
   --accent-soft:rgba(42,120,214,.10); --accent-ring:rgba(42,120,214,.35);
   --good:#0ca30c; --good-text:#006300; --warn:#b97e00; --crit:#d03b3b; --crit-soft:rgba(208,59,59,.08);
   --s1:#2a78d6; --s2:#1baf7a;
   --f1:#86b6ef; --f2:#5598e7; --f3:#2a78d6; --f4:#1c5cab; --f5:#104281;
   --grid:#e6eaee; --axis:#c4cbd2;
-  --shadow:0 1px 2px rgba(16,21,28,.05),0 8px 24px rgba(16,21,28,.07);
-  --shadow-lift:0 4px 12px rgba(16,21,28,.10),0 16px 40px rgba(16,21,28,.14);
+  --shadow:0 1px 2px rgba(16,21,28,.04),0 4px 14px rgba(16,21,28,.05);
+  --shadow-lift:0 6px 18px rgba(16,21,28,.10),0 24px 48px rgba(16,21,28,.14);
 }
 @media (prefers-color-scheme: dark){
   :root{
     --bg:#0d1117; --surface:#161c24; --surface-2:#1e2630; --surface-3:#131920;
     --ink:#eef2f6; --ink-2:#a7b1bc; --ink-3:#78838e;
     --line:#28313c; --line-soft:#212a34;
-    --accent:#3987e5; --accent-strong:#6da7ec; --on-accent:#ffffff;
+    --accent:#3987e5; --accent-2:#54a0f5; --accent-strong:#6da7ec; --on-accent:#ffffff;
     --accent-soft:rgba(57,135,229,.16); --accent-ring:rgba(57,135,229,.45);
     --good:#0ca30c; --good-text:#22bb44; --warn:#fab219; --crit:#e05555; --crit-soft:rgba(224,85,85,.12);
     --s1:#3987e5; --s2:#199e70;
     --f1:#9ec5f4; --f2:#6da7ec; --f3:#3987e5; --f4:#256abf; --f5:#184f95;
     --grid:#232c36; --axis:#3a4550;
-    --shadow:0 1px 2px rgba(0,0,0,.3),0 8px 24px rgba(0,0,0,.35);
-    --shadow-lift:0 4px 12px rgba(0,0,0,.4),0 16px 40px rgba(0,0,0,.5);
+    --shadow:0 1px 2px rgba(0,0,0,.25),0 4px 16px rgba(0,0,0,.30);
+    --shadow-lift:0 8px 24px rgba(0,0,0,.45),0 24px 56px rgba(0,0,0,.55);
   }
 }
 :root[data-theme="light"]{
@@ -253,12 +253,15 @@ input{font-family:inherit; color:inherit}
   background:linear-gradient(to top, var(--bg) 70%, transparent);
 }
 .btn-primary{
-  width:100%; padding:15px; border-radius:14px; background:var(--accent); color:var(--on-accent);
-  font-size:15px; font-weight:800; letter-spacing:.02em; box-shadow:var(--shadow);
-  transition:transform .08s;
+  width:100%; padding:15px; border-radius:14px;
+  background:linear-gradient(180deg, var(--accent-2), var(--accent)); color:var(--on-accent);
+  font-size:15px; font-weight:800; letter-spacing:.02em;
+  box-shadow:0 1px 2px rgba(16,21,28,.12), 0 6px 16px color-mix(in srgb, var(--accent) 32%, transparent);
+  transition:transform .08s, box-shadow .15s, filter .15s;
 }
 .btn-primary:disabled{opacity:.5; pointer-events:none}
-.btn-primary:active{transform:scale(.98)}
+.btn-primary:hover{filter:saturate(1.05) brightness(1.03)}
+.btn-primary:active{transform:translateY(1px) scale(.99); box-shadow:0 1px 2px rgba(16,21,28,.12)}
 .btn-ghost{padding:11px 16px; border-radius:12px; border:1px solid var(--line); font-weight:700; font-size:13px; color:var(--ink-2); background:var(--surface); min-height:44px}
 /* 稼働終了ボタン: 白カード上で埋もれないよう塗りつぶしの高コントラストに。開始(青)と
    区別するため濃色(ink)で「終了/停止」を表す。ライト/ダーク両テーマで視認できる（トーストと同系）。*/
@@ -404,7 +407,8 @@ tr.member-row.is-selected td{background:var(--accent-soft, var(--surface-3))}
 @keyframes pulse{50%{opacity:.35}}
 @media (prefers-reduced-motion: reduce){ .dash-head .live::before{animation:none} }
 .dash-grid{display:grid; grid-template-columns:repeat(12,1fr); gap:16px}
-.tile{grid-column:span 3; background:var(--surface); border:1px solid var(--line); border-radius:16px; padding:14px 16px; box-shadow:var(--shadow)}
+.tile{grid-column:span 3; background:var(--surface); border:1px solid var(--line); border-radius:16px; padding:15px 17px; box-shadow:var(--shadow); transition:box-shadow .16s, transform .16s, border-color .16s}
+@media (hover:hover){ .tile:hover{transform:translateY(-2px); border-color:color-mix(in srgb, var(--accent) 22%, var(--line)); box-shadow:0 2px 4px rgba(16,21,28,.05),0 10px 26px rgba(16,21,28,.10)} }
 .tile .k{font-size:12px; font-weight:700; color:var(--ink-2); letter-spacing:.04em}
 .tile .v{font-size:32px; font-weight:800; letter-spacing:-.02em; line-height:1.25; margin:2px 0; font-variant-numeric:tabular-nums}
 .tile .v small{font-size:14px; font-weight:700; color:var(--ink-3); letter-spacing:0}
@@ -541,7 +545,7 @@ tr.member-row.is-selected td{background:var(--accent-soft, var(--surface-3))}
       </div>
     </div>
     <div style="display:flex; align-items:center; gap:8px">
-      <span style="font-size:10px; color:var(--ink-3); font-weight:700; letter-spacing:.04em">v9</span>
+      <span style="font-size:10px; color:var(--ink-3); font-weight:700; letter-spacing:.04em">v10</span>
       <span class="sync-pill" id="syncPill">同期済み</span>
       <button type="button" onclick="Sales.signOut()" aria-label="ログアウト" title="ログアウト"
               style="border:none; background:transparent; color:var(--ink-3); font-size:12px; padding:6px; cursor:pointer">ログアウト</button>
