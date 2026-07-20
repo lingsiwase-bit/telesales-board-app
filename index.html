@@ -2001,6 +2001,8 @@ const Admin = (() => {
   let CONFIG = { industries: DEFAULT_INDUSTRIES, targets: { visits: DEFAULT_TARGET_VISITS }, members: [] };
 
   function init() {
+    // ダッシュボードを開いた時は「全体」ではなく自分に絞って表示する
+    selectedMember = Auth.member || '';
     refresh();
     if (!pollTimer) pollTimer = setInterval(refresh, 60000); // §5.2: ポーリング60秒
   }
@@ -2029,7 +2031,9 @@ const Admin = (() => {
   function populateMemberSelect() {
     const sel = document.getElementById('memberSelect');
     if (!sel) return;
-    const members = CONFIG.members || [];
+    const members = (CONFIG.members || []).slice();
+    // 自分は常に選択肢に出す（データ未登録でも自分に絞り込めるように）
+    if (Auth.member && members.indexOf(Auth.member) === -1) members.unshift(Auth.member);
     // 選択中メンバーが登録から消えた場合は全体に戻す
     if (selectedMember && members.indexOf(selectedMember) === -1) selectedMember = '';
     const opts = ['<option value="">全体</option>']
