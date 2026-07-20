@@ -3,13 +3,13 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>TeleSales Board</title>
+<title>T-Div</title>
 <meta name="theme-color" content="#2a78d6">
 <link rel="manifest" href="manifest.json">
-<link rel="apple-touch-icon" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/icon-180.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="default">
-<meta name="apple-mobile-web-app-title" content="TeleSales">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="T-Div">
 <style>
 /*
  * デザイントークン（docs/spec.md §7）
@@ -456,9 +456,9 @@ tr.member-row.is-selected td{background:var(--accent-soft, var(--surface-3))}
 
 <header class="appbar">
   <div class="brand">
-    <div class="brand-mark">TS</div>
+    <div class="brand-mark" style="background:none"><img src="icons/icon-192.png" alt="T-Div" width="30" height="30" style="border-radius:8px;display:block"></div>
     <div>
-      <div class="brand-name">TeleSales Board</div>
+      <div class="brand-name">T-Div</div>
       <div class="brand-sub">通信事業部 KPI管理</div>
     </div>
   </div>
@@ -620,8 +620,8 @@ tr.member-row.is-selected td{background:var(--accent-soft, var(--surface-3))}
 <div class="app-shell" id="authShell">
   <main class="phone-body" style="padding-top:24px; display:flex; align-items:center; justify-content:center; text-align:center">
     <div style="width:100%; max-width:320px">
-      <div class="brand-mark" style="width:56px; height:56px; border-radius:16px; margin:0 auto 14px; display:flex; align-items:center; justify-content:center; font-weight:800; font-size:20px; background:var(--accent); color:var(--on-accent)">TS</div>
-      <div style="font-size:18px; font-weight:800; margin:0 0 4px">TeleSales Board</div>
+      <img src="icons/icon-192.png" alt="T-Div" width="72" height="72" style="border-radius:18px; margin:0 auto 14px; display:block; box-shadow:0 6px 18px rgba(16,21,28,.18)">
+      <div style="font-size:20px; font-weight:800; margin:0 0 4px; letter-spacing:.02em">T-Div</div>
       <p id="authMessage" style="font-size:13px; color:var(--ink-2); margin:8px 0 16px; line-height:1.7">読み込み中…</p>
       <div id="loginForm" hidden>
         <input id="codeInput" type="text" inputmode="text" autocapitalize="off" autocomplete="off" spellcheck="false"
@@ -1082,6 +1082,7 @@ const Sales = (() => {
   let currentTab = 'input';
   let pendingOverwriteRow = null;
   let toastTimer = null;
+  let renderedDay = null; // showApp を実行した日付（日付跨ぎ検出用）
 
   /* ---------- 初期化・認証（Phase4: 担当コード／トークン） ---------- */
   let queueFlushRegistered = false;
@@ -1238,6 +1239,7 @@ const Sales = (() => {
   async function showApp() {
     document.getElementById('authShell').hidden = true;
     document.getElementById('appShell').hidden = false;
+    renderedDay = todayStr(); // この画面を描画した日付を記録（日付跨ぎ検出用）
 
     document.getElementById('whoAvatar').textContent = Auth.memberName.slice(0, 1);
     document.getElementById('whoName').textContent = Auth.memberName;
@@ -1869,14 +1871,32 @@ const Sales = (() => {
     return String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   }
 
+  // 日付が変わったら画面を新しい日にリフレッシュする。アプリを開きっぱなしで
+  // 夜を越すと todayStr() が前日のまま残り、朝に「稼働開始」等が前日の状態を
+  // 参照して打てない事態を防ぐ。入力中/確認モーダル表示中は中断しない。
+  function checkDayRollover() {
+    if (!renderedDay || document.getElementById('appShell').hidden) return;
+    if (todayStr() === renderedDay) return;
+    const sheetOpen = document.getElementById('sheet').classList.contains('open');
+    const el = document.activeElement;
+    const typing = el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA');
+    if (sheetOpen || typing) return; // 操作の邪魔をしないよう次の機会に回す
+    location.reload(); // 新しい日で読み直す（オフラインでもSWキャッシュから起動可・ドラフトは日付別保存なので消えない）
+  }
+
   return {
     init, setTab, bump, stepDoko, openConfirm, closeConfirm, submitReport,
     renderHome, renderHistory, dismissInstallHint, flushQueue, startWork, endWork,
-    recordAcquisition, doLogin, signOut,
+    recordAcquisition, doLogin, signOut, checkDayRollover,
   };
 })();
 
 document.addEventListener('DOMContentLoaded', Sales.init);
+
+// 日付跨ぎの検出: 前面復帰時（朝の開き直し）と定期チェックの両方で新しい日へ更新する
+document.addEventListener('visibilitychange', () => { if (!document.hidden) Sales.checkDayRollover(); });
+window.addEventListener('focus', () => Sales.checkDayRollover());
+setInterval(() => Sales.checkDayRollover(), 60000);
 
 // Phase4: PWA（ホーム画面インストール・オフライン起動）用にService Workerを登録する。
 // 独自オリジン(GitHub Pages)配信のため manifest / sw が正しく機能する。

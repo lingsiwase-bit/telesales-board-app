@@ -5,7 +5,7 @@
  * - GAS WebApp(データAPI)へのリクエストはキャッシュしない（別オリジンかつ常に最新が必要）
  * 参照: docs/spec.md §8 PWA要件
  */
-const CACHE_VERSION = 'web-v2';
+const CACHE_VERSION = 'web-v3';
 const CACHE_NAME = 'telesales-board-' + CACHE_VERSION;
 
 const PRECACHE_URLS = [
@@ -14,6 +14,7 @@ const PRECACHE_URLS = [
   './manifest.json',
   './icons/icon-192.png',
   './icons/icon-512.png',
+  './icons/icon-180.png',
 ];
 
 self.addEventListener('install', (event) => {
