@@ -408,8 +408,10 @@ tr.member-row.is-selected td{background:var(--accent-soft, var(--surface-3))}
 .tile .k{font-size:12px; font-weight:700; color:var(--ink-2); letter-spacing:.04em}
 .tile .v{font-size:32px; font-weight:800; letter-spacing:-.02em; line-height:1.25; margin:2px 0; font-variant-numeric:tabular-nums}
 .tile .v small{font-size:14px; font-weight:700; color:var(--ink-3); letter-spacing:0}
-.tile .d{font-size:12px; font-weight:700}
-.d.up{color:var(--good-text)} .d.down{color:var(--crit)} .d.flat{color:var(--ink-3)}
+.tile .d{font-size:11.5px; font-weight:700; display:inline-flex; align-items:center; gap:3px; padding:2px 9px; border-radius:999px; margin-top:3px}
+.d.up{color:var(--good-text); background:color-mix(in srgb, var(--good) 13%, transparent)}
+.d.down{color:var(--crit); background:var(--crit-soft)}
+.d.flat{color:var(--ink-3); background:var(--surface-2)}
 .panel{background:var(--surface); border:1px solid var(--line); border-radius:16px; padding:16px 18px; box-shadow:var(--shadow)}
 .panel-head{display:flex; align-items:baseline; justify-content:space-between; gap:10px; margin-bottom:12px; flex-wrap:wrap}
 .panel-head h3{margin:0; font-size:15px; font-weight:800}
@@ -429,6 +431,28 @@ tr.member-row.is-selected td{background:var(--accent-soft, var(--surface-3))}
 .callout.ok{border-color:color-mix(in srgb, var(--good) 30%, var(--line)); background:color-mix(in srgb, var(--good) 7%, var(--surface))}
 .callout.ok .ico{background:var(--good)}
 
+/* インサイト（学び・成長）カード */
+.panel.insights{background:linear-gradient(180deg, color-mix(in srgb, var(--accent) 4%, var(--surface)), var(--surface))}
+.insight-grid{display:grid; grid-template-columns:repeat(auto-fit, minmax(230px, 1fr)); gap:12px}
+.insight-card{
+  position:relative; border:1px solid var(--line); border-radius:14px; padding:13px 14px 13px 16px;
+  background:var(--surface); display:flex; flex-direction:column; gap:5px; overflow:hidden;
+}
+.insight-card::before{content:""; position:absolute; left:0; top:0; bottom:0; width:4px; background:var(--ink-3)}
+.insight-card.focus::before{background:var(--accent)}
+.insight-card.good::before{background:var(--good)}
+.insight-card.watch::before{background:var(--warn)}
+.insight-card .ic-top{display:flex; align-items:center; gap:7px}
+.insight-card .ic-tag{font-size:10.5px; font-weight:800; letter-spacing:.06em; text-transform:uppercase; color:var(--ink-3)}
+.insight-card.focus .ic-tag{color:var(--accent-strong)}
+.insight-card.good .ic-tag{color:var(--good-text)}
+.insight-card.watch .ic-tag{color:var(--warn)}
+.insight-card .ic-metric{margin-left:auto; font-size:18px; font-weight:800; font-variant-numeric:tabular-nums; letter-spacing:-.01em}
+.insight-card.good .ic-metric{color:var(--good-text)} .insight-card.watch .ic-metric{color:var(--warn)} .insight-card.focus .ic-metric{color:var(--accent-strong)}
+.insight-card .ic-title{font-size:13.5px; font-weight:800; line-height:1.35}
+.insight-card .ic-desc{font-size:12px; color:var(--ink-2); line-height:1.55}
+.insight-card .ic-desc b{color:var(--ink); font-variant-numeric:tabular-nums}
+
 /* funnel */
 .funnel-row{display:grid; grid-template-columns:88px 1fr 56px; align-items:center; gap:10px; padding:7px 0}
 .funnel-row .fl{font-size:12.5px; font-weight:700; color:var(--ink-2); text-align:right}
@@ -439,6 +463,9 @@ tr.member-row.is-selected td{background:var(--accent-soft, var(--surface-3))}
 .funnel-conv{display:grid; grid-template-columns:88px 1fr; gap:10px; padding:0}
 .funnel-conv span{grid-column:2; font-size:10.5px; color:var(--ink-3); font-weight:600; padding-left:2px}
 .funnel-conv span b{color:var(--ink-2); font-variant-numeric:tabular-nums}
+.funnel-conv.bottleneck span{color:var(--warn)}
+.funnel-conv.bottleneck span b{color:var(--warn)}
+.funnel-conv.bottleneck em{font-style:normal; font-weight:800; color:var(--warn)}
 
 /* loss bars */
 .loss-row{display:grid; grid-template-columns:96px 1fr 44px; align-items:center; gap:10px; padding:8px 0}
@@ -514,7 +541,7 @@ tr.member-row.is-selected td{background:var(--accent-soft, var(--surface-3))}
       </div>
     </div>
     <div style="display:flex; align-items:center; gap:8px">
-      <span style="font-size:10px; color:var(--ink-3); font-weight:700; letter-spacing:.04em">v8</span>
+      <span style="font-size:10px; color:var(--ink-3); font-weight:700; letter-spacing:.04em">v9</span>
       <span class="sync-pill" id="syncPill">同期済み</span>
       <button type="button" onclick="Sales.signOut()" aria-label="ログアウト" title="ログアウト"
               style="border:none; background:transparent; color:var(--ink-3); font-size:12px; padding:6px; cursor:pointer">ログアウト</button>
@@ -693,6 +720,15 @@ tr.member-row.is-selected td{background:var(--accent-soft, var(--surface-3))}
     <div class="tile"><div class="k">入り口突破率</div><div class="v" id="kRate">—</div><div class="d" id="dRate"></div></div>
     <div class="tile"><div class="k">商談</div><div class="v" id="kSho">—</div><div class="d" id="dSho"></div></div>
     <div class="tile"><div class="k">受注件数</div><div class="v" id="kJu">—</div><div class="d" id="dJu"></div></div>
+
+    <!-- インサイト（学び・成長）: データから改善ポイントを自動抽出 -->
+    <div class="panel span12 insights">
+      <div class="panel-head">
+        <h3>💡 インサイト</h3>
+        <span class="note" id="insightScope">データから見える伸びしろと次の一手</span>
+      </div>
+      <div class="insight-grid" id="insightGrid"></div>
+    </div>
 
     <div class="panel span5">
       <div class="panel-head"><h3>営業ファネル</h3><span class="note" id="funnelNote"></span></div>
@@ -2129,6 +2165,7 @@ const Admin = (() => {
   function renderAll(summary, dailyRows, memberSummaries, clockEvents) {
     renderAlert(summary);
     renderTiles(summary);
+    renderInsights(summary);
     renderFunnel(summary);
     renderLoss(summary);
     renderMemberTable(memberSummaries);
@@ -2183,6 +2220,82 @@ const Admin = (() => {
     });
   }
 
+  /* ---------- インサイト（学び・成長）: データから改善ポイントを自動抽出 ---------- */
+  function renderInsights(summary) {
+    const t = summary.totals, r = summary.rates;
+    const grid = document.getElementById('insightGrid');
+    const pct = (n, d) => d > 0 ? n / d : null;
+    const pctStr = (v) => v == null ? '—' : (v * 100).toFixed(1) + '%';
+    const cards = [];
+
+    // 各転換段の転換率（ボトルネック検出用）
+    const trans = [
+      { name: '飛び込み → 入り口突破', rate: pct(t.breakthrough, t.visits), inVol: t.visits, i: 0 },
+      { name: '入り口突破 → 商談', rate: pct(t.meetings, t.breakthrough), inVol: t.breakthrough, i: 1 },
+      { name: '商談 → 申請', rate: pct(t.applyItems, t.meetings), inVol: t.meetings, i: 2 },
+      { name: '申請 → 受注', rate: pct(t.orderItems, t.applyItems), inVol: t.applyItems, i: 3 },
+    ];
+    const valid = trans.filter(x => x.rate != null);
+
+    // ① 最大の伸びしろ（ボトルネック段）＋改善インパクトの概算
+    if (valid.length) {
+      const bn = valid.reduce((a, b) => b.rate < a.rate ? b : a);
+      let downstream = 1;
+      trans.slice(bn.i + 1).forEach(x => { if (x.rate != null) downstream *= x.rate; });
+      const extra = Math.round(bn.inVol * 0.05 * downstream);
+      cards.push({
+        cls: 'focus', tag: '最大の伸びしろ', metric: pctStr(bn.rate), title: bn.name,
+        desc: `ファネル内で転換率が最も低い段です。ここを <b>+5pt</b> 改善すると、同じ活動量で受注が <b>約${extra}件</b> 増える見込み。まずここに集中しましょう。`,
+      });
+    }
+
+    // ② 成長トレンド（入り口突破率の前月比）
+    if (period === 'thisMonth' && summary.prev && r.breakthroughRate != null && summary.prev.rates.breakthroughRate != null) {
+      const diff = (r.breakthroughRate - summary.prev.rates.breakthroughRate) * 100;
+      const up = diff >= 0;
+      cards.push({
+        cls: up ? 'good' : 'watch', tag: up ? '成長中' : '要注意',
+        metric: (diff >= 0 ? '+' : '') + diff.toFixed(1) + 'pt', title: '入り口突破率 前月比',
+        desc: up
+          ? `前月から改善しています。今の入り口トークが効いています。<b>${pctStr(r.breakthroughRate)}</b> を維持しましょう。`
+          : `前月から低下しています。入り口の一言目（フック）を見直すと戻せる可能性が高いです。`,
+      });
+    }
+
+    // ③ 受注力（商談→受注率）
+    const closeRate = pct(t.orderItems, t.meetings);
+    if (closeRate != null) {
+      cards.push({
+        cls: closeRate >= 0.2 ? 'good' : '', tag: '受注力', metric: pctStr(closeRate), title: '商談からの受注率',
+        desc: `商談 <b>${fmt(t.meetings)}</b>件 → 受注 <b>${fmt(t.orderItems)}</b>件。1件1件の商談の質を上げるとこの数字が伸びます。`,
+      });
+    }
+
+    // ④ 活動効率（1営業日あたり）
+    if (summary.days > 0) {
+      const per = (n) => (n / summary.days).toFixed(1);
+      cards.push({
+        cls: '', tag: '活動効率', title: '1営業日あたりの活動量',
+        desc: `飛び込み <b>${per(t.visits)}</b>・商談 <b>${per(t.meetings)}</b>・受注 <b>${per(t.orderItems)}</b> 件/日（${summary.days}営業日）。まず商談数を増やすほど成果は安定します。`,
+      });
+    }
+
+    if (!cards.length) {
+      grid.innerHTML = `<div class="insight-card"><div class="ic-title">データが集まると、ここに伸びしろと次の一手が出ます</div><div class="ic-desc">日報が記録されると、ファネルのボトルネックや前月比の成長を自動で分析します。</div></div>`;
+      return;
+    }
+    grid.innerHTML = cards.map(c => `
+      <div class="insight-card ${c.cls}">
+        <div class="ic-top">
+          <span class="ic-tag">${escapeHtml(c.tag)}</span>
+          ${c.metric ? `<span class="ic-metric">${escapeHtml(c.metric)}</span>` : ''}
+        </div>
+        <div class="ic-title">${escapeHtml(c.title)}</div>
+        <div class="ic-desc">${c.desc}</div>
+      </div>`).join('');
+    document.getElementById('insightScope').textContent = (selectedMember || '全体') + '・' + periodLabel();
+  }
+
   /* ---------- ファネル ---------- */
   function renderFunnel(summary) {
     const stages = [
@@ -2194,12 +2307,18 @@ const Admin = (() => {
     ];
     const colors = ['var(--f1)', 'var(--f2)', 'var(--f3)', 'var(--f4)', 'var(--f5)'];
     const max = stages[0][1] || 1;
+    // 各段の転換率とボトルネック（最も低い段）を求める
+    const convs = stages.map((s, i) => (i > 0 && stages[i - 1][1] > 0) ? s[1] / stages[i - 1][1] : null);
+    let minIdx = -1, minVal = Infinity;
+    convs.forEach((c, i) => { if (c != null && c < minVal) { minVal = c; minIdx = i; } });
+    const hasMulti = convs.filter(c => c != null).length > 1;
     let html = '';
     stages.forEach((s, i) => {
       if (i > 0) {
-        const prev = stages[i - 1][1];
-        const conv = prev ? (100 * s[1] / prev).toFixed(1) + '%' : '—';
-        html += `<div class="funnel-conv"><span>↓ 転換率 <b>${conv}</b></span></div>`;
+        const c = convs[i];
+        const isBn = i === minIdx && hasMulti;
+        const conv = c != null ? (100 * c).toFixed(1) + '%' : '—';
+        html += `<div class="funnel-conv${isBn ? ' bottleneck' : ''}"><span>↓ 転換率 <b>${conv}</b>${isBn ? ' <em>← 最大の伸びしろ</em>' : ''}</span></div>`;
       }
       // 値0でも段を消さない（細線+0表示）
       const widthPct = Math.max(100 * s[1] / max, s[1] ? 2 : 0.6);
