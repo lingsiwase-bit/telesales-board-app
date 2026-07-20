@@ -247,6 +247,13 @@ input{font-family:inherit; color:inherit}
 .btn-primary:disabled{opacity:.5; pointer-events:none}
 .btn-primary:active{transform:scale(.98)}
 .btn-ghost{padding:11px 16px; border-radius:12px; border:1px solid var(--line); font-weight:700; font-size:13px; color:var(--ink-2); background:var(--surface); min-height:44px}
+/* 稼働終了ボタン: 白カード上で埋もれないよう塗りつぶしの高コントラストに。開始(青)と
+   区別するため濃色(ink)で「終了/停止」を表す。ライト/ダーク両テーマで視認できる（トーストと同系）。*/
+.btn-endwork{width:100%; padding:13px 16px; border-radius:12px; border:none; font-weight:800; font-size:14px; min-height:48px;
+  background:var(--ink); color:var(--bg); box-shadow:0 2px 8px rgba(16,21,28,.18); cursor:pointer;
+  display:inline-flex; align-items:center; justify-content:center; gap:6px}
+.btn-endwork:active{transform:translateY(1px)}
+.btn-endwork:disabled{opacity:.55}
 
 /* confirm sheet */
 .sheet-veil{position:fixed; inset:0; background:rgba(10,14,20,.45); z-index:20; display:none}
@@ -527,7 +534,7 @@ tr.member-row.is-selected td{background:var(--accent-soft, var(--surface-3))}
           <div><label>終了</label><input type="time" id="tEnd" value="18:00"></div>
         </div>
         <div class="worked-hint"><span>稼働時間（自動計算）</span><b id="workedH">9.0 h</b></div>
-        <button type="button" class="btn-ghost" id="endWorkBtn" onclick="Sales.endWork()" style="width:100%; margin-top:14px">📍 稼働終了（位置情報を記録）</button>
+        <button type="button" class="btn-endwork" id="endWorkBtn" onclick="Sales.endWork()" style="margin-top:14px">🏁 稼働終了（位置情報を記録）</button>
         <p class="clockin-status" id="clockOutStatus" hidden></p>
         <p class="field-error" id="timeError" hidden>終了時刻は開始時刻より後にしてください</p>
         <div class="step-row divider">
@@ -1503,7 +1510,7 @@ const Sales = (() => {
     },
     end: {
       btnId: 'endWorkBtn', statusId: 'clockOutStatus', field: 'workEnd',
-      idleLabel: '📍 稼働終了（位置情報を記録）', verb: '稼働終了', apiFn: 'clockOut', setter: 'setEnd',
+      idleLabel: '🏁 稼働終了（位置情報を記録）', verb: '稼働終了', apiFn: 'clockOut', setter: 'setEnd',
     },
   };
 
