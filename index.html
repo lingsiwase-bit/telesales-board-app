@@ -705,7 +705,7 @@ tr.member-row.is-selected td{background:var(--accent-soft)}
       </div>
     </div>
     <div style="display:flex; align-items:center; gap:8px">
-      <span id="appVer" style="font-size:10px; color:var(--ink-3); font-weight:700; letter-spacing:.04em">v27</span>
+      <span id="appVer" style="font-size:10px; color:var(--ink-3); font-weight:700; letter-spacing:.04em">v28</span>
       <span class="sync-pill" id="syncPill">同期済み</span>
       <button type="button" onclick="Sales.signOut()" aria-label="ログアウト" title="ログアウト"
               style="border:none; background:transparent; color:var(--ink-3); font-size:12px; padding:6px; cursor:pointer">ログアウト</button>
@@ -2226,8 +2226,11 @@ const Sales = (() => {
     }
     var cls = p.pacePt >= 0 ? 'ok' : 'behind';
     var sign = p.pacePt > 0 ? '+' : '';
-    var back = (p.needMeetings != null && p.needVisits != null)
-      ? '目安: 商談<b>' + p.needMeetings + '</b>件・飛び込み<b>' + p.needVisits + '</b>件<br>' : '';
+    var back = p.thin
+      ? 'まずは量: 今日は飛び込み<b>' + p.stdVisits + '</b>件（組織の当たり前）' +
+        (p.avgVisitsPerDay > 0 ? '。現在平均<b>' + p.avgVisitsPerDay + '</b>件/日 → あと<b>' + Math.max(0, p.stdVisits - p.avgVisitsPerDay) + '</b>件/日上積み' : '') + '<br>'
+      : ((p.needMeetings != null && p.needVisits != null)
+        ? '目安: 商談<b>' + p.needMeetings + '</b>件・飛び込み<b>' + p.needVisits + '</b>件<br>' : '');
     wrap.innerHTML =
       '<div class="ap-directive">今日: 申請 <b>' + p.perDayApply + '</b> 件・後確通過 <b>' + p.perDayPost + '</b> 件</div>' +
       '<div class="ap-mini">' + back +
@@ -2507,7 +2510,13 @@ function computeGoalPlan_(summary, tApply, tPost, now) {
   var forecastApply = summary.days > 0 ? Math.round(t.applyItems / summary.days * wd.total) : t.applyItems;
   var forecastPost = summary.days > 0 ? Math.round(post / summary.days * wd.total) : post;
   var meetingsPerApply = rApply > 0 ? Math.ceil(1 / rApply) : null;
+  // 組織基準: 1日の飛び込みは300件が当たり前（2026-07-23指示）。
+  // 稼働5日未満 or 飛び込み累計1000件未満は転換率を信頼せず「まず量」モードにする
+  var STD_VISITS = 300;
+  var avgVisitsPerDay = summary.days > 0 ? Math.round(t.visits / summary.days) : 0;
+  var thin = summary.days < 5 || t.visits < 1000;
   return {
+    thin: thin, stdVisits: STD_VISITS, avgVisitsPerDay: avgVisitsPerDay, dataDays: summary.days,
     tApply: tApply || 0, tPost: tPost || 0,
     remainApply: remainApply, remainPost: remainPost,
     perDayApply: perDayApply, perDayPost: perDayPost,
@@ -2725,8 +2734,10 @@ const Admin = (() => {
       '<div class="ap-chips">' +
       '<div class="ap-chip"><div class="k">今週やり切る数字</div><div class="v">申請' + fmt(p.weekApply) + '件</div><div class="s">残り' + p.weekRemaining + '営業日 × ' + fmt(p.perDayApply) + '件/日</div></div>' +
       '<div class="ap-chip"><div class="k">月間目標まで</div><div class="v">申請あと' + fmt(p.remainApply) + '件</div><div class="s">後確通過あと' + fmt(p.remainPost) + '件</div></div>' +
-      '<div class="ap-chip"><div class="k">このペースの着地予測</div><div class="v">申請' + fmt(p.forecastApply) + '件</div><div class="s">後確通過 ' + fmt(p.forecastPost) + '件</div></div>' +
-      (p.meetingsPerApply ? '<div class="ap-chip"><div class="k">申請1件の目安</div><div class="v">商談 約' + p.meetingsPerApply + '件</div><div class="s">現在の商談→申請率 ' + (100 * p.rates.rApply).toFixed(1) + '%</div></div>' : '') +
+      (p.thin
+        ? '<div class="ap-chip"><div class="k">量の基準（組織の当たり前）</div><div class="v">飛び込み' + fmt(p.stdVisits) + '件/日</div><div class="s">現在平均 ' + fmt(p.avgVisitsPerDay) + '件/日（稼働' + p.dataDays + '日）</div></div>'
+        : '<div class="ap-chip"><div class="k">このペースの着地予測</div><div class="v">申請' + fmt(p.forecastApply) + '件</div><div class="s">後確通過 ' + fmt(p.forecastPost) + '件</div></div>' +
+          (p.meetingsPerApply ? '<div class="ap-chip"><div class="k">申請1件の目安</div><div class="v">商談 約' + p.meetingsPerApply + '件</div><div class="s">現在の商談→申請率 ' + (100 * p.rates.rApply).toFixed(1) + '%</div></div>' : '')) +
       '</div>';
     if (p.done) {
       body.innerHTML = '<div class="ap-directive">🎉 今月の目標（申請・後確通過）を達成！ 上積みに挑戦しましょう</div>' + chips;
@@ -2734,10 +2745,19 @@ const Admin = (() => {
     }
     var cls = p.pacePt >= 0 ? 'ok' : 'behind';
     var sign = p.pacePt > 0 ? '+' : '';
-    var backcalc = (p.needMeetings != null && p.needVisits != null)
-      ? ' そのための活動目安: 商談' + fmt(p.needMeetings) + '件・飛び込み' + fmt(p.needVisits) + '件。'
-      : '';
-    var msg = (p.pacePt >= 0 ? '経過より先行しています。この調子で。' : 'ビハインドです。今日から1日申請' + fmt(p.perDayApply) + '件ペースで挽回。') + backcalc;
+    var msg;
+    if (p.thin) {
+      // データが薄いうちは転換率の逆算を出さず、量の基準で鼓舞する
+      var push = p.avgVisitsPerDay > 0
+        ? '現在の平均は' + fmt(p.avgVisitsPerDay) + '件/日 — 今日は あと' + fmt(Math.max(0, p.stdVisits - p.avgVisitsPerDay)) + '件上積みして' + fmt(p.stdVisits) + '件をやり切ろう。'
+        : '今日は飛び込み' + fmt(p.stdVisits) + '件をやり切ろう。';
+      msg = 'まずは量。1日飛び込み' + fmt(p.stdVisits) + '件が当たり前。' + push + ' 必要件数の逆算はデータが貯まったら自動で出ます。';
+    } else {
+      var backcalc = (p.needMeetings != null && p.needVisits != null)
+        ? ' そのための活動目安: 商談' + fmt(p.needMeetings) + '件・飛び込み' + fmt(p.needVisits) + '件。'
+        : '';
+      msg = (p.pacePt >= 0 ? '経過より先行しています。この調子で。' : 'ビハインドです。今日から1日申請' + fmt(p.perDayApply) + '件ペースで挽回。') + backcalc;
+    }
     body.innerHTML =
       '<div class="ap-directive">今日やる数字: 申請 <b>' + fmt(p.perDayApply) + '</b> 件・後確通過 <b>' + fmt(p.perDayPost) + '</b> 件</div>' +
       '<div class="ap-sub"><span class="ap-badge ' + cls + '">ペース ' + sign + p.pacePt + 'pt</span>' + escapeHtml(msg) + '</div>' +
@@ -2900,7 +2920,7 @@ const Admin = (() => {
       const el = document.getElementById(id);
       if (!showDelta || cur == null || prev == null) {
         el.className = 'd flat';
-        el.textContent = summary.days + '営業日';
+        el.textContent = summary.days + '稼働日';
         return;
       }
       const factor = Math.pow(10, digits);
@@ -2965,8 +2985,8 @@ const Admin = (() => {
     if (summary.days > 0) {
       const per = (n) => (n / summary.days).toFixed(1);
       cards.push({
-        cls: '', tag: '活動効率', title: '1営業日あたりの活動量',
-        desc: `飛び込み <b>${per(t.visits)}</b>・商談 <b>${per(t.meetings)}</b>・受注 <b>${per(t.orderItems)}</b> 件/日（${summary.days}営業日）。まず商談数を増やすほど成果は安定します。`,
+        cls: '', tag: '活動効率', title: '1稼働日あたりの活動量',
+        desc: `飛び込み <b>${per(t.visits)}</b>・商談 <b>${per(t.meetings)}</b>・受注 <b>${per(t.orderItems)}</b> 件/日（${summary.days}稼働日）。まず商談数を増やすほど成果は安定します。`,
       });
     }
 
@@ -3019,7 +3039,7 @@ const Admin = (() => {
       </div>`;
     });
     document.getElementById('funnel').innerHTML = html;
-    document.getElementById('funnelNote').textContent = periodLabel() + '・' + summary.days + '営業日';
+    document.getElementById('funnelNote').textContent = periodLabel() + '・' + summary.days + '稼働日';
   }
 
   /* ---------- 離脱要因 ---------- */
