@@ -634,6 +634,21 @@ tr.member-row.is-selected td{background:var(--accent-soft)}
 .dow-row.best .dow-track i{background:var(--grad-btn)}
 .dow-row .dv{font-size:11.5px; font-weight:700; text-align:right; color:var(--ink-2); font-variant-numeric:tabular-nums; white-space:nowrap}
 
+/* 目標編集モーダル */
+.tgt-veil{position:fixed; inset:0; background:rgba(23,30,51,.4); z-index:60; backdrop-filter:blur(3px); -webkit-backdrop-filter:blur(3px)}
+.tgt-modal{position:fixed; left:50%; top:50%; transform:translate(-50%,-50%); z-index:61;
+  width:calc(100% - 32px); max-width:430px; max-height:84vh; overflow-y:auto;
+  background:var(--solid); border:1px solid var(--glass-border); border-radius:20px; padding:22px 20px; box-shadow:var(--shadow-lift)}
+.tgt-modal h3{margin:0 0 4px; font-size:17px; font-weight:800}
+.tgt-modal .sub{font-size:12px; color:var(--ink-3); margin:0 0 12px; line-height:1.6}
+.tgt-month{display:flex; align-items:center; gap:8px; font-size:12.5px; font-weight:700; color:var(--ink-2); margin-bottom:12px}
+.tgt-month select{background:var(--solid); color:var(--ink); border:1px solid var(--line); border-radius:10px; padding:7px 10px; font-size:13px; font-weight:700}
+.tgt-head{display:grid; grid-template-columns:1fr 92px 92px; gap:8px; font-size:11px; font-weight:700; color:var(--ink-3); padding:0 0 6px}
+.tgt-head span:nth-child(2),.tgt-head span:nth-child(3){text-align:center}
+.tgt-row{display:grid; grid-template-columns:1fr 92px 92px; gap:8px; align-items:center; padding:7px 0; border-top:1px solid var(--line-soft)}
+.tgt-row .name{font-size:13.5px; font-weight:700}
+.tgt-row input{width:100%; min-width:0; padding:9px 10px; border:1px solid var(--line); border-radius:10px; background:var(--surface-3); font-size:16px; font-weight:700; text-align:center; font-variant-numeric:tabular-nums}
+
 /* 空データ・ローディング */
 .dash-empty{grid-column:span 12; text-align:center; color:var(--ink-3); font-size:13px; padding:40px 0}
 </style>
@@ -670,7 +685,7 @@ tr.member-row.is-selected td{background:var(--accent-soft)}
       </div>
     </div>
     <div style="display:flex; align-items:center; gap:8px">
-      <span style="font-size:10px; color:var(--ink-3); font-weight:700; letter-spacing:.04em">v16</span>
+      <span style="font-size:10px; color:var(--ink-3); font-weight:700; letter-spacing:.04em">v17</span>
       <span class="sync-pill" id="syncPill">同期済み</span>
       <button type="button" onclick="Sales.signOut()" aria-label="ログアウト" title="ログアウト"
               style="border:none; background:transparent; color:var(--ink-3); font-size:12px; padding:6px; cursor:pointer">ログアウト</button>
@@ -691,7 +706,7 @@ tr.member-row.is-selected td{background:var(--accent-soft)}
         <div class="hero-tile t-orange"><div class="k">商談</div><div class="v" id="homeSho">0</div><div class="d flat">本日</div></div>
       </div>
       <div class="card section">
-        <p class="card-title">今月の目標進捗（飛び込み）</p>
+        <p class="card-title">今月の目標進捗（申請・後確通過）</p>
         <div id="goalWrap"><div class="skeleton" style="height:38px"></div></div>
       </div>
       <div class="card section">
@@ -852,7 +867,7 @@ tr.member-row.is-selected td{background:var(--accent-soft)}
 
     <!-- 今日のアクションプラン: 月間目標から逆算した「今日やる数字」 -->
     <div class="panel span12 actionplan">
-      <div class="panel-head"><h3>今日のアクションプラン</h3><span class="note" id="apScope"></span></div>
+      <div class="panel-head"><h3>今日のアクションプラン</h3><div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap"><span class="note" id="apScope"></span><button class="tgl" onclick="Admin.openTargetEditor()">🎯 目標を編集</button></div></div>
       <div id="apBody"></div>
     </div>
 
@@ -902,7 +917,7 @@ tr.member-row.is-selected td{background:var(--accent-soft)}
       <div class="panel-head"><h3>メンバー別サマリー</h3><span class="note" id="memberNote">行をクリックすると担当者別に絞り込み（上部の担当者セレクタと連動）</span></div>
       <div class="tbl-scroll">
         <table>
-          <thead><tr><th>メンバー</th><th>稼働日</th><th>飛び込み</th><th>突破率</th><th>商談</th><th>申請</th><th>受注</th><th>目標達成</th></tr></thead>
+          <thead><tr><th>メンバー</th><th>稼働日</th><th>飛び込み</th><th>突破率</th><th>商談</th><th>申請</th><th>受注</th><th>申請達成</th></tr></thead>
           <tbody id="memberBody"></tbody>
         </table>
       </div>
@@ -926,6 +941,23 @@ tr.member-row.is-selected td{background:var(--accent-soft)}
           <tbody id="clockBody"></tbody>
         </table>
       </div>
+    </div>
+  </div>
+
+  <!-- 月間目標の編集（数字分析権限のみ。保存先はシートのTargetsタブ） -->
+  <div class="tgt-veil" id="tgtVeil" hidden onclick="Admin.closeTargetEditor()"></div>
+  <div class="tgt-modal" id="tgtModal" hidden role="dialog" aria-modal="true" aria-label="月間目標の設定">
+    <h3>月間目標の設定</h3>
+    <p class="sub">追う目標は「申請数」と「後確通過数」。設定の無い月は直近の目標を自動で引き継ぎます。</p>
+    <label class="tgt-month">対象月
+      <select id="tgtMonth" onchange="Admin.loadTargetEditor()"></select>
+    </label>
+    <div class="tgt-head"><span>メンバー</span><span>申請</span><span>後確通過</span></div>
+    <div id="tgtRows"></div>
+    <p class="field-error" id="tgtErr" hidden></p>
+    <div style="display:flex; gap:10px; margin-top:16px">
+      <button class="btn-ghost" onclick="Admin.closeTargetEditor()">閉じる</button>
+      <button class="btn-primary" id="tgtSaveBtn" style="flex:1" onclick="Admin.saveTargets()">保存</button>
     </div>
   </div>
 </main>
@@ -1278,6 +1310,12 @@ const Api = {
   getSummary(period, member) {
     if (hasScriptRun()) return runScript('apiSummary', period, member);
     return callApi('GET', 'summary', { params: { period, member } });
+  },
+  getTargets(period) {
+    return callApi('GET', 'targets', { params: { period } });
+  },
+  setTarget(payload) {
+    return callApi('POST', 'setTarget', { body: payload });
   },
   whoami() {
     if (hasScriptRun()) return runScript('apiWhoami');
@@ -1970,10 +2008,14 @@ const Sales = (() => {
     document.getElementById('homeActionWrap').innerHTML = '<div class="skeleton" style="height:56px"></div>';
     renderReminder();
     try {
-      const summary = await Api.getSummary(currentPeriod());
-      renderGoal(summary);
+      const [summary, tgtRes] = await Promise.all([
+        Api.getSummary(currentPeriod()),
+        Api.getTargets(currentPeriod()).catch(() => null),
+      ]);
+      const myTgt = tgtRes && tgtRes.targets ? tgtRes.targets[Auth.member] : null;
+      renderGoal(summary, myTgt);
       renderMonthSelf(summary);
-      renderHomeAction(summary);
+      renderHomeAction(summary, myTgt);
     } catch (e) {
       const msg = e.message || 'シートに接続できませんでした。電波状況を確認して再試行してください';
       goalWrap.innerHTML = renderErrorCard(msg, 'Sales.renderHome()');
@@ -1982,13 +2024,23 @@ const Sales = (() => {
     }
   }
 
-  function renderGoal(summary) {
-    const target = targetForMember_(CONFIG, Auth.member); // 自分の目標（メンバー別対応）
-    const visits = summary.totals.visits;
-    const pct = target ? Math.min(100, Math.round(100 * visits / target)) : 0;
-    document.getElementById('goalWrap').innerHTML = `
+  function renderGoal(summary, tgt) {
+    const wrap = document.getElementById('goalWrap');
+    if (!tgt || (!tgt.apply && !tgt.postConfirm)) {
+      wrap.innerHTML = '<p style="margin:0; font-size:12.5px; color:var(--ink-3)">今月の目標が未設定です（数字分析の「目標を編集」で設定できます）</p>';
+      return;
+    }
+    const bar = (label, cur, target) => {
+      if (!target) return '';
+      const pct = Math.min(100, Math.round(100 * cur / target));
+      return `
       <div class="goal-bar"><i style="width:${pct}%"></i></div>
-      <div class="goal-meta"><span>月間目標 ${target}件</span><b>${visits} / ${target} ・ ${pct}%</b></div>`;
+      <div class="goal-meta"><span>${label} 目標${target}件</span><b>${cur} / ${target} ・ ${pct}%</b></div>`;
+    };
+    wrap.innerHTML =
+      bar('申請', summary.totals.applyItems, tgt.apply || 0) +
+      '<div style="height:8px"></div>' +
+      bar('後確通過', summary.totals.postConfirm || 0, tgt.postConfirm || 0);
   }
 
   function renderMonthSelf(summary) {
@@ -2007,22 +2059,28 @@ const Sales = (() => {
       </div>`;
   }
 
-  // 「今日のアクション」: 自分の当月実績と個人目標から今日やる数字を出す
-  function renderHomeAction(summary) {
+  // 「今日のアクション」: 自分の当月実績と個人目標（申請・後確通過）から今日やる数字を出す
+  function renderHomeAction(summary, tgt) {
     var wrap = document.getElementById('homeActionWrap');
     if (!wrap) return;
-    var p = computeActionPlan_(summary, targetForMember_(CONFIG, Auth.member), 1);
+    if (!tgt || (!tgt.apply && !tgt.postConfirm)) {
+      wrap.innerHTML = '<div class="ap-mini">今月の目標が未設定です。数字分析の「目標を編集」で申請数・後確通過数を設定すると、毎日の逆算アクションがここに出ます。</div>';
+      return;
+    }
+    var p = computeGoalPlan_(summary, tgt.apply || 0, tgt.postConfirm || 0);
     if (p.done) {
-      wrap.innerHTML = '<div class="ap-directive">🎉 月間目標クリア！このまま上積みしましょう</div>' +
-        '<div class="ap-mini">着地予測 <b>' + p.forecastVisits + '</b>件（目標' + p.target + '件）</div>';
+      wrap.innerHTML = '<div class="ap-directive">🎉 今月の目標クリア！このまま上積みしましょう</div>' +
+        '<div class="ap-mini">着地予測 申請<b>' + p.forecastApply + '</b>件・後確通過<b>' + p.forecastPost + '</b>件</div>';
       return;
     }
     var cls = p.pacePt >= 0 ? 'ok' : 'behind';
     var sign = p.pacePt > 0 ? '+' : '';
+    var back = (p.needMeetings != null && p.needVisits != null)
+      ? '目安: 商談<b>' + p.needMeetings + '</b>件・飛び込み<b>' + p.needVisits + '</b>件<br>' : '';
     wrap.innerHTML =
-      '<div class="ap-directive">今日: 飛び込み <b>' + p.perDay + '</b> 件・商談 <b>' + p.todayMeetings + '</b> 件</div>' +
-      '<div class="ap-mini">今週やり切る: <b>' + p.weekVisits + '</b>件（残り' + p.weekRemaining + '営業日）<br>' +
-      '月間目標まで あと<b>' + p.remainVisits + '</b>件 / 残り' + p.remaining + '営業日 ' +
+      '<div class="ap-directive">今日: 申請 <b>' + p.perDayApply + '</b> 件・後確通過 <b>' + p.perDayPost + '</b> 件</div>' +
+      '<div class="ap-mini">' + back +
+      '月間目標まで 申請あと<b>' + p.remainApply + '</b>件・後確あと<b>' + p.remainPost + '</b>件（残り' + p.remaining + '営業日） ' +
       '<span class="ap-badge ' + cls + '">ペース ' + sign + p.pacePt + 'pt</span></div>';
   }
 
@@ -2224,40 +2282,39 @@ function workdaysInfo_(now) {
   return { total: total, remaining: remaining, elapsedIncl: elapsedIncl, weekRemaining: Math.max(1, weekRemaining) };
 }
 
-// メンバー別の月間目標。Config `memberTargets`（名前=件数）を優先し、無ければ targetVisits
-function targetForMember_(config, member) {
-  var mt = config && config.memberTargets;
-  var t = mt && member && mt[member];
-  if (isFinite(t) && t > 0) return Number(t);
-  return (config && config.targets && config.targets.visits) || DEFAULT_TARGET_VISITS;
-}
-
-// summary（当月）と目標から「今日やる数字」を逆算する。
-// 転換率は当月実績、実績ゼロの段は現実的な既定値(突破30%/商談化30%/受注15%)で補完
-function computeActionPlan_(summary, targetVisits, scopeCount, now) {
+// 追う目標は「申請数」と「後確通過数」（Targetsタブ・アプリの「目標を編集」から設定）。
+// 当月実績の転換率で活動量（商談・飛び込み）まで逆算する。実績ゼロの段は
+// 現実的な既定値（突破30% / 商談化30% / 商談→申請35%）で補完
+function computeGoalPlan_(summary, tApply, tPost, now) {
   now = now || new Date();
   var wd = workdaysInfo_(now);
-  var target = (targetVisits || 300) * Math.max(1, scopeCount || 1);
   var t = summary.totals;
+  var post = t.postConfirm || 0;
   var r1 = t.visits ? t.breakthrough / t.visits : 0.30;
   var r2 = t.breakthrough ? t.meetings / t.breakthrough : 0.30;
-  var r3 = t.meetings ? t.orderItems / t.meetings : 0.15;
-  var remainVisits = Math.max(0, target - t.visits);
-  var perDay = Math.ceil(remainVisits / wd.remaining);
-  var todayMeetings = Math.max(1, Math.round(perDay * r1 * r2));
-  var weekVisits = perDay * wd.weekRemaining;
+  var rApply = t.meetings ? t.applyItems / t.meetings : 0.35;
+  var remainApply = Math.max(0, (tApply || 0) - t.applyItems);
+  var remainPost = Math.max(0, (tPost || 0) - post);
+  var perDayApply = Math.ceil(remainApply / wd.remaining);
+  var perDayPost = Math.ceil(remainPost / wd.remaining);
+  var needMeetings = (perDayApply > 0 && rApply > 0) ? Math.ceil(perDayApply / rApply) : null;
+  var needVisits = (needMeetings != null && r1 * r2 > 0) ? Math.ceil(needMeetings / (r1 * r2)) : null;
+  var progress = tApply ? t.applyItems / tApply : (tPost ? post / tPost : 0);
   var elapsedRatio = wd.total ? wd.elapsedIncl / wd.total : 0;
-  var progressRatio = target ? t.visits / target : 0;
-  var pacePt = Math.round((progressRatio - elapsedRatio) * 100);
-  var forecastVisits = summary.days > 0 ? Math.round(t.visits / summary.days * wd.total) : t.visits;
-  var forecastOrders = Math.round(forecastVisits * r1 * r2 * r3);
-  var meetingsPerOrder = r3 > 0 ? Math.ceil(1 / r3) : null;
+  var pacePt = Math.round((progress - elapsedRatio) * 100);
+  var forecastApply = summary.days > 0 ? Math.round(t.applyItems / summary.days * wd.total) : t.applyItems;
+  var forecastPost = summary.days > 0 ? Math.round(post / summary.days * wd.total) : post;
+  var meetingsPerApply = rApply > 0 ? Math.ceil(1 / rApply) : null;
   return {
-    target: target, remainVisits: remainVisits, perDay: perDay, todayMeetings: todayMeetings,
-    weekVisits: weekVisits, weekRemaining: wd.weekRemaining, remaining: wd.remaining, totalDays: wd.total,
-    pacePt: pacePt, forecastVisits: forecastVisits, forecastOrders: forecastOrders,
-    meetingsPerOrder: meetingsPerOrder, done: remainVisits === 0,
-    rates: { r1: r1, r2: r2, r3: r3 },
+    tApply: tApply || 0, tPost: tPost || 0,
+    remainApply: remainApply, remainPost: remainPost,
+    perDayApply: perDayApply, perDayPost: perDayPost,
+    needMeetings: needMeetings, needVisits: needVisits,
+    weekApply: perDayApply * wd.weekRemaining, weekRemaining: wd.weekRemaining,
+    remaining: wd.remaining, totalDays: wd.total,
+    pacePt: pacePt, forecastApply: forecastApply, forecastPost: forecastPost,
+    meetingsPerApply: meetingsPerApply, rates: { r1: r1, r2: r2, rApply: rApply },
+    done: remainApply === 0 && remainPost === 0,
   };
 }
 
@@ -2291,6 +2348,7 @@ const Admin = (() => {
   let tableShown = false;
   let chartPts = [];
   let CONFIG = { industries: DEFAULT_INDUSTRIES, targets: { visits: DEFAULT_TARGET_VISITS }, members: [] };
+  let TARGETS = {}; // 月間目標（Targetsタブ由来・メンバー別 {apply, postConfirm}）
 
   function init() {
     // ダッシュボードを開いた時は「全体」ではなく自分に絞って表示する
@@ -2341,13 +2399,15 @@ const Admin = (() => {
     try {
       const apiPeriod = periodToApiParam(period);
       const scope = selectedMember || undefined; // 全パネルをこのメンバーに絞る
-      const [summary, daily, config, clockEvents] = await Promise.all([
+      const [summary, daily, config, clockEvents, targetsRes] = await Promise.all([
         Api.getSummary(apiPeriod, scope),
         Api.getDaily(apiPeriod, scope),
         Api.getConfig(),
         Api.getClockEvents(apiPeriod, scope),
+        Api.getTargets(apiPeriod || currentPeriod()).catch(() => ({ targets: {} })),
       ]);
       CONFIG = config || CONFIG;
+      TARGETS = (targetsRes && targetsRes.targets) || {};
       populateMemberSelect();
       // メンバー別サマリー表は常に全員分を表示（比較＋ドリルイン導線）
       const memberSummaries = await Promise.all(
@@ -2418,7 +2478,7 @@ const Admin = (() => {
     renderWeekday(dailyRows);
   }
 
-  /* ---------- 今日のアクションプラン ---------- */
+  /* ---------- 今日のアクションプラン（申請・後確通過の逆算） ---------- */
   function renderActionPlan(summary) {
     var body = document.getElementById('apBody');
     var scopeEl = document.getElementById('apScope');
@@ -2428,37 +2488,116 @@ const Admin = (() => {
       body.innerHTML = '<p style="margin:0; font-size:12.5px; color:var(--ink-3)">「当月」表示のときに今日のアクションを計算します</p>';
       return;
     }
-    // 担当者絞り込み時はその人の目標、全体は各メンバー目標の合計
-    var targetTotal = selectedMember
-      ? targetForMember_(CONFIG, selectedMember)
-      : ((CONFIG.members && CONFIG.members.length)
-          ? CONFIG.members.reduce(function (sum, m) { return sum + targetForMember_(CONFIG, m); }, 0)
-          : ((CONFIG.targets && CONFIG.targets.visits) || DEFAULT_TARGET_VISITS));
-    var p = computeActionPlan_(summary, targetTotal, 1);
-    scopeEl.textContent = scopeLabel() + '・月間目標 飛び込み' + fmt(p.target) + '件（平日換算・残り' + p.remaining + '営業日）';
+    var tApply = 0, tPost = 0;
+    if (selectedMember) {
+      var mt = TARGETS[selectedMember];
+      if (mt) { tApply = mt.apply || 0; tPost = mt.postConfirm || 0; }
+    } else {
+      (CONFIG.members || []).forEach(function (m) {
+        var t = TARGETS[m];
+        if (t) { tApply += t.apply || 0; tPost += t.postConfirm || 0; }
+      });
+    }
+    if (!tApply && !tPost) {
+      scopeEl.textContent = scopeLabel();
+      body.innerHTML = '<p style="margin:0; font-size:12.5px; color:var(--ink-3)">今月の目標が未設定です。右上の「🎯 目標を編集」からメンバーごとの申請数・後確通過数を設定してください。</p>';
+      return;
+    }
+    var p = computeGoalPlan_(summary, tApply, tPost);
+    scopeEl.textContent = scopeLabel() + '・今月の目標 申請' + fmt(tApply) + '件 / 後確通過' + fmt(tPost) + '件（残り' + p.remaining + '営業日）';
     var chips =
       '<div class="ap-chips">' +
-      '<div class="ap-chip"><div class="k">今週やり切る数字</div><div class="v">' + fmt(p.weekVisits) + '件</div><div class="s">残り' + p.weekRemaining + '営業日 × ' + fmt(p.perDay) + '件/日</div></div>' +
-      '<div class="ap-chip"><div class="k">月間目標まで</div><div class="v">あと' + fmt(p.remainVisits) + '件</div><div class="s">目標' + fmt(p.target) + '件・達成率' + (p.target ? Math.round(100 * (p.target - p.remainVisits) / p.target) : 0) + '%</div></div>' +
-      '<div class="ap-chip"><div class="k">このペースの着地予測</div><div class="v">' + fmt(p.forecastVisits) + '件</div><div class="s">受注見込み 約' + fmt(p.forecastOrders) + '件</div></div>' +
-      (p.meetingsPerOrder ? '<div class="ap-chip"><div class="k">受注1件に必要な商談</div><div class="v">約' + p.meetingsPerOrder + '件</div><div class="s">現在の商談→受注率 ' + (100 * p.rates.r3).toFixed(1) + '%</div></div>' : '') +
+      '<div class="ap-chip"><div class="k">今週やり切る数字</div><div class="v">申請' + fmt(p.weekApply) + '件</div><div class="s">残り' + p.weekRemaining + '営業日 × ' + fmt(p.perDayApply) + '件/日</div></div>' +
+      '<div class="ap-chip"><div class="k">月間目標まで</div><div class="v">申請あと' + fmt(p.remainApply) + '件</div><div class="s">後確通過あと' + fmt(p.remainPost) + '件</div></div>' +
+      '<div class="ap-chip"><div class="k">このペースの着地予測</div><div class="v">申請' + fmt(p.forecastApply) + '件</div><div class="s">後確通過 ' + fmt(p.forecastPost) + '件</div></div>' +
+      (p.meetingsPerApply ? '<div class="ap-chip"><div class="k">申請1件の目安</div><div class="v">商談 約' + p.meetingsPerApply + '件</div><div class="s">現在の商談→申請率 ' + (100 * p.rates.rApply).toFixed(1) + '%</div></div>' : '') +
       '</div>';
     if (p.done) {
-      body.innerHTML = '<div class="ap-directive">🎉 月間目標を達成！ 上積みと「商談の質」に投資しましょう</div>' + chips;
+      body.innerHTML = '<div class="ap-directive">🎉 今月の目標（申請・後確通過）を達成！ 上積みに挑戦しましょう</div>' + chips;
       return;
     }
     var cls = p.pacePt >= 0 ? 'ok' : 'behind';
     var sign = p.pacePt > 0 ? '+' : '';
-    var msg = p.pacePt >= 0
-      ? '月の経過より先行しています。この調子で1日' + fmt(p.perDay) + '件を維持。'
-      : 'ビハインドです。今日から1日' + fmt(p.perDay) + '件で月内に挽回できます。';
+    var backcalc = (p.needMeetings != null && p.needVisits != null)
+      ? ' そのための活動目安: 商談' + fmt(p.needMeetings) + '件・飛び込み' + fmt(p.needVisits) + '件。'
+      : '';
+    var msg = (p.pacePt >= 0 ? '経過より先行しています。この調子で。' : 'ビハインドです。今日から1日申請' + fmt(p.perDayApply) + '件ペースで挽回。') + backcalc;
     body.innerHTML =
-      '<div class="ap-directive">今日やる数字: 飛び込み <b>' + fmt(p.perDay) + '</b> 件・商談 <b>' + fmt(p.todayMeetings) + '</b> 件</div>' +
+      '<div class="ap-directive">今日やる数字: 申請 <b>' + fmt(p.perDayApply) + '</b> 件・後確通過 <b>' + fmt(p.perDayPost) + '</b> 件</div>' +
       '<div class="ap-sub"><span class="ap-badge ' + cls + '">ペース ' + sign + p.pacePt + 'pt</span>' + escapeHtml(msg) + '</div>' +
       chips;
   }
 
-  /* ---------- 今週 vs 先週 ---------- */
+  /* ---------- 目標編集モーダル ---------- */
+  function monthChoices_() {
+    const now = new Date();
+    return [-1, 0, 1].map(offset => {
+      const d = new Date(now.getFullYear(), now.getMonth() + offset, 1);
+      const v = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
+      const suffix = offset === 0 ? '（当月）' : offset === 1 ? '（来月）' : '';
+      return { v, label: d.getFullYear() + '年' + (d.getMonth() + 1) + '月' + suffix };
+    });
+  }
+  function openTargetEditor() {
+    const sel = document.getElementById('tgtMonth');
+    sel.innerHTML = monthChoices_().map(c => `<option value="${c.v}">${escapeHtml(c.label)}</option>`).join('');
+    sel.value = currentPeriod();
+    document.getElementById('tgtErr').hidden = true;
+    document.getElementById('tgtVeil').hidden = false;
+    document.getElementById('tgtModal').hidden = false;
+    loadTargetEditor();
+  }
+  function closeTargetEditor() {
+    document.getElementById('tgtVeil').hidden = true;
+    document.getElementById('tgtModal').hidden = true;
+  }
+  async function loadTargetEditor() {
+    const month = document.getElementById('tgtMonth').value;
+    const wrap = document.getElementById('tgtRows');
+    wrap.innerHTML = '<div class="skeleton" style="height:120px"></div>';
+    let map = {};
+    try {
+      const res = await Api.getTargets(month);
+      map = (res && res.targets) || {};
+    } catch (e) { /* 未取得でも空欄で編集開始できる */ }
+    const members = (CONFIG.members && CONFIG.members.length) ? CONFIG.members : (Auth.member ? [Auth.member] : []);
+    wrap.innerHTML = members.map(m => {
+      const t = map[m] || {};
+      return `<div class="tgt-row" data-member="${escapeHtml(m)}">
+        <span class="name">${escapeHtml(m)}</span>
+        <input type="number" inputmode="numeric" min="0" class="tgt-apply" value="${t.apply || ''}" placeholder="0" aria-label="${escapeHtml(m)}の申請目標">
+        <input type="number" inputmode="numeric" min="0" class="tgt-post" value="${t.postConfirm || ''}" placeholder="0" aria-label="${escapeHtml(m)}の後確通過目標">
+      </div>`;
+    }).join('');
+  }
+  async function saveTargets() {
+    const btn = document.getElementById('tgtSaveBtn');
+    const err = document.getElementById('tgtErr');
+    err.hidden = true;
+    const month = document.getElementById('tgtMonth').value;
+    const rows = Array.from(document.querySelectorAll('#tgtRows .tgt-row'));
+    btn.disabled = true; btn.textContent = '保存中…';
+    try {
+      for (const row of rows) {
+        const res = await Api.setTarget({
+          month,
+          member: row.dataset.member,
+          apply: Number(row.querySelector('.tgt-apply').value) || 0,
+          postConfirm: Number(row.querySelector('.tgt-post').value) || 0,
+        });
+        if (!res || !res.ok) throw new Error((res && res.message) || '保存に失敗しました');
+      }
+      closeTargetEditor();
+      refresh(); // 保存後に全パネルを再計算
+    } catch (e) {
+      err.textContent = e.message || '保存に失敗しました。電波状況を確認して再試行してください';
+      err.hidden = false;
+    } finally {
+      btn.disabled = false; btn.textContent = '保存';
+    }
+  }
+
+    /* ---------- 今週 vs 先週 ---------- */
   function ymdOf_(d) {
     var pad = function (n) { return String(n).padStart(2, '0'); };
     return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate());
@@ -2723,8 +2862,11 @@ const Admin = (() => {
       (b.summary.totals.visits - a.summary.totals.visits));
     document.getElementById('memberBody').innerHTML = ranked.map(({ id, summary }, i) => {
       const rate = summary.rates.breakthroughRate;
-      const target = targetForMember_(CONFIG, id); // メンバー別目標
-      const goal = target ? Math.min(100, Math.round(100 * summary.totals.visits / target)) : 0;
+      const tgtApply = TARGETS[id] ? TARGETS[id].apply : 0; // 申請目標（メンバー別）
+      const goal = tgtApply ? Math.min(100, Math.round(100 * summary.totals.applyItems / tgtApply)) : null;
+      const achCell = goal == null
+        ? '<span style="color:var(--ink-3)">未設定</span>'
+        : `<span class="ach-track"><i style="width:${goal}%"></i></span>${goal}%`;
       const selCls = id === selectedMember ? ' is-selected' : '';
       return `<tr class="member-row${selCls}" onclick="Admin.setMember('${escapeHtml(id)}')" title="クリックで${escapeHtml(id)}に絞り込み">
         <td><span class="member"><span class="rank${i === 0 ? ' top' : ''}">${i + 1}</span><span class="avatar">${escapeHtml(id.slice(0, 1).toUpperCase())}</span>${escapeHtml(id)}</span></td>
@@ -2734,7 +2876,7 @@ const Admin = (() => {
         <td>${fmt(summary.totals.meetings)}</td>
         <td>${summary.totals.applyItems === 0 ? '<span class="warn-text">0</span>' : fmt(summary.totals.applyItems)}</td>
         <td>${summary.totals.orderItems === 0 ? '<span class="warn-text">0</span>' : fmt(summary.totals.orderItems)}</td>
-        <td><span class="ach-track"><i style="width:${goal}%"></i></span>${goal}%</td>
+        <td>${achCell}</td>
       </tr>`;
     }).join('');
   }
@@ -2859,7 +3001,7 @@ const Admin = (() => {
       <button class="btn-ghost" style="margin-top:8px" onclick="Admin.init()">再試行</button></div>`;
   }
 
-  return { init, stop, setPeriod, setMember, toggleTable };
+  return { init, stop, setPeriod, setMember, toggleTable, openTargetEditor, closeTargetEditor, loadTargetEditor, saveTargets };
 })();
 
 </script>
