@@ -649,6 +649,23 @@ tr.member-row.is-selected td{background:var(--accent-soft)}
 .tgt-row .name{font-size:13.5px; font-weight:700}
 .tgt-row input{width:100%; min-width:0; padding:9px 10px; border:1px solid var(--line); border-radius:10px; background:var(--surface-3); font-size:16px; font-weight:700; text-align:center; font-variant-numeric:tabular-nums}
 
+/* コミットカレンダー */
+.cal-grid{display:grid; grid-template-columns:repeat(7,1fr); gap:6px}
+.cal-grid > *{min-width:0}
+.cal-head{margin-bottom:6px}
+.cal-head span{text-align:center; font-size:11px; font-weight:700; color:var(--ink-3)}
+.cal-day{min-height:62px; border:1px solid var(--line-soft); border-radius:12px; padding:6px 7px; background:var(--surface-3); display:flex; flex-direction:column; gap:1px; overflow:hidden}
+.cal-day.empty{border:none; background:transparent}
+.cal-day.future{opacity:.5}
+.cal-day.today{border-color:var(--accent); border-width:1.5px; background:var(--accent-soft)}
+.cal-day.ok{background:color-mix(in srgb, var(--good) 10%, var(--solid)); border-color:color-mix(in srgb, var(--good) 35%, transparent)}
+.cal-day.miss{background:var(--crit-soft); border-color:color-mix(in srgb, var(--crit) 30%, transparent)}
+.cal-num{font-size:11px; font-weight:800; color:var(--ink-2); font-variant-numeric:tabular-nums}
+.cal-day.ok .cal-num{color:var(--good-text)}
+.cal-day.miss .cal-num{color:var(--crit)}
+.cal-val{font-size:10.5px; font-weight:700; color:var(--ink-2); font-variant-numeric:tabular-nums; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+@media (max-width:560px){ .cal-day{min-height:52px; padding:4px 5px} .cal-val.post{display:none} }
+
 /* 空データ・ローディング */
 .dash-empty{grid-column:span 12; text-align:center; color:var(--ink-3); font-size:13px; padding:40px 0}
 </style>
@@ -685,7 +702,7 @@ tr.member-row.is-selected td{background:var(--accent-soft)}
       </div>
     </div>
     <div style="display:flex; align-items:center; gap:8px">
-      <span style="font-size:10px; color:var(--ink-3); font-weight:700; letter-spacing:.04em">v18</span>
+      <span style="font-size:10px; color:var(--ink-3); font-weight:700; letter-spacing:.04em">v19</span>
       <span class="sync-pill" id="syncPill">同期済み</span>
       <button type="button" onclick="Sales.signOut()" aria-label="ログアウト" title="ログアウト"
               style="border:none; background:transparent; color:var(--ink-3); font-size:12px; padding:6px; cursor:pointer">ログアウト</button>
@@ -840,6 +857,41 @@ tr.member-row.is-selected td{background:var(--accent-soft)}
     </div>
   </main>
 </div>
+<!-- 月次コミット宣言（本人のみ・宣言後は変更不可） -->
+<div class="tgt-veil" id="mcVeil" hidden onclick="Sales.closeMonthCommit()"></div>
+<div class="tgt-modal" id="mcModal" hidden role="dialog" aria-modal="true" aria-label="今月のコミット宣言">
+  <h3>今月のコミットを宣言</h3>
+  <p class="sub"><span id="mcMonthLabel"></span>の申請数・後確通過数を宣言します。<b>宣言後は変更できません。</b></p>
+  <div class="tgt-head"><span>メンバー</span><span>申請</span><span>後確通過</span></div>
+  <div class="tgt-row">
+    <span class="name" id="mcName"></span>
+    <input type="number" min="0" inputmode="numeric" id="mcApply" placeholder="0" aria-label="申請コミット">
+    <input type="number" min="0" inputmode="numeric" id="mcPost" placeholder="0" aria-label="後確通過コミット">
+  </div>
+  <p class="field-error" id="mcErr" hidden></p>
+  <div style="display:flex; gap:10px; margin-top:16px">
+    <button class="btn-ghost" onclick="Sales.closeMonthCommit()">閉じる</button>
+    <button class="btn-primary" id="mcSaveBtn" style="flex:1" onclick="Sales.saveMonthCommit()">宣言する</button>
+  </div>
+</div>
+
+<!-- 日次コミット宣言（稼働開始と同時） -->
+<div class="tgt-veil" id="dcVeil" hidden onclick="Sales.closeDailyCommit()"></div>
+<div class="tgt-modal" id="dcModal" hidden role="dialog" aria-modal="true" aria-label="今日のコミット">
+  <h3>今日のコミット</h3>
+  <p class="sub">稼働開始と同時に、今日やり切る数字を宣言します。</p>
+  <div class="tgt-head"><span></span><span>申請</span><span>後確通過</span></div>
+  <div class="tgt-row">
+    <span class="name">今日</span>
+    <input type="number" min="0" inputmode="numeric" id="dcApply" placeholder="0" aria-label="今日の申請コミット">
+    <input type="number" min="0" inputmode="numeric" id="dcPost" placeholder="0" aria-label="今日の後確通過コミット">
+  </div>
+  <p class="field-error" id="dcErr" hidden></p>
+  <div style="display:flex; gap:10px; margin-top:16px">
+    <button class="btn-ghost" onclick="Sales.closeDailyCommit()">やめる</button>
+    <button class="btn-primary" id="dcGoBtn" style="flex:1" onclick="Sales.confirmDailyCommit()">📍 宣言して稼働開始</button>
+  </div>
+</div>
 </div><!-- /salesView -->
 
 <!-- ============ 管理者モード（Phase 2） ============ -->
@@ -867,7 +919,7 @@ tr.member-row.is-selected td{background:var(--accent-soft)}
 
     <!-- 今日のアクションプラン: 月間目標から逆算した「今日やる数字」 -->
     <div class="panel span12 actionplan">
-      <div class="panel-head"><h3>今日のアクションプラン</h3><div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap"><span class="note" id="apScope"></span><button class="tgl" onclick="Admin.openTargetEditor()">🎯 目標を編集</button></div></div>
+      <div class="panel-head"><h3>今日のアクションプラン</h3><span class="note" id="apScope"></span></div>
       <div id="apBody"></div>
     </div>
 
@@ -934,6 +986,11 @@ tr.member-row.is-selected td{background:var(--accent-soft)}
     </div>
 
     <div class="panel span12">
+      <div class="panel-head"><h3>コミットカレンダー</h3><span class="note">数字は「実績/コミット」。日次コミットは稼働開始時の宣言で記録</span></div>
+      <div id="commitCal"></div>
+    </div>
+
+    <div class="panel span12">
       <div class="panel-head"><h3>稼働管理</h3><span class="note">GPS打刻ログ（📍稼働開始/終了ボタンの記録）</span></div>
       <div class="tbl-scroll">
         <table>
@@ -944,22 +1001,6 @@ tr.member-row.is-selected td{background:var(--accent-soft)}
     </div>
   </div>
 
-  <!-- 月間目標の編集（数字分析権限のみ。保存先はシートのTargetsタブ） -->
-  <div class="tgt-veil" id="tgtVeil" hidden onclick="Admin.closeTargetEditor()"></div>
-  <div class="tgt-modal" id="tgtModal" hidden role="dialog" aria-modal="true" aria-label="月間目標の設定">
-    <h3>月間目標の設定</h3>
-    <p class="sub">追う目標は「申請数」と「後確通過数」。設定の無い月は直近の目標を自動で引き継ぎます。</p>
-    <label class="tgt-month">対象月
-      <select id="tgtMonth" onchange="Admin.loadTargetEditor()"></select>
-    </label>
-    <div class="tgt-head"><span>メンバー</span><span>申請</span><span>後確通過</span></div>
-    <div id="tgtRows"></div>
-    <p class="field-error" id="tgtErr" hidden></p>
-    <div style="display:flex; gap:10px; margin-top:16px">
-      <button class="btn-ghost" onclick="Admin.closeTargetEditor()">閉じる</button>
-      <button class="btn-primary" id="tgtSaveBtn" style="flex:1" onclick="Admin.saveTargets()">保存</button>
-    </div>
-  </div>
 </main>
 
 <script>
@@ -1093,6 +1134,15 @@ const AcqCache = {
     l.unshift(record);
     localStorage.setItem(this._key(member, date), JSON.stringify(l));
   },
+};
+
+// 日次コミット（稼働開始と同時に宣言）の端末内キャッシュ（表示用。正はDailyCommitsタブ）
+const DailyCommitCache = {
+  _key(member, date) { return `dailyCommit:${member}:${date}`; },
+  get(member, date) {
+    try { return JSON.parse(localStorage.getItem(this._key(member, date)) || 'null'); } catch (e) { return null; }
+  },
+  set(member, date, rec) { localStorage.setItem(this._key(member, date), JSON.stringify(rec)); },
 };
 
 const Auth = {
@@ -1790,7 +1840,35 @@ const Sales = (() => {
     },
   };
 
-  function startWork() { recordClockEvent('start'); }
+  let pendingDailyCommit = null;
+
+  // 稼働開始は「今日のコミット」宣言とセット。宣言済みならそのまま打刻
+  function startWork() {
+    if (DailyCommitCache.get(Auth.member, todayStr())) { recordClockEvent('start'); return; }
+    document.getElementById('dcErr').hidden = true;
+    document.getElementById('dcApply').value = '';
+    document.getElementById('dcPost').value = '';
+    document.getElementById('dcVeil').hidden = false;
+    document.getElementById('dcModal').hidden = false;
+    setTimeout(() => document.getElementById('dcApply').focus(), 50);
+  }
+  function closeDailyCommit() {
+    document.getElementById('dcVeil').hidden = true;
+    document.getElementById('dcModal').hidden = true;
+  }
+  function confirmDailyCommit() {
+    const applyRaw = document.getElementById('dcApply').value;
+    const postRaw = document.getElementById('dcPost').value;
+    if (applyRaw === '' && postRaw === '') {
+      const err = document.getElementById('dcErr');
+      err.textContent = '今日のコミット（申請・後確通過）を入力してください';
+      err.hidden = false;
+      return;
+    }
+    pendingDailyCommit = { apply: Number(applyRaw) || 0, post: Number(postRaw) || 0 };
+    closeDailyCommit();
+    recordClockEvent('start');
+  }
   function endWork() { recordClockEvent('end'); }
 
   function recordClockEvent(kind) {
@@ -1800,7 +1878,12 @@ const Sales = (() => {
     btn.textContent = '取得中…';
 
     const finish = (lat, lng, accuracy) => {
-      Api[cfg.apiFn]({ lat, lng, accuracy })
+      const payload = { lat, lng, accuracy };
+      if (kind === 'start' && pendingDailyCommit) {
+        payload.commitApply = pendingDailyCommit.apply;
+        payload.commitPost = pendingDailyCommit.post;
+      }
+      Api[cfg.apiFn](payload)
         .then(res => {
           if (!res.ok) {
             showToast(res.message || `${cfg.verb}の記録に失敗しました`, true);
@@ -1814,6 +1897,10 @@ const Sales = (() => {
           updateWorkedHours();
           const record = { time: res.time, hasLocation: res.hasLocation, mapsLink: res.mapsLink };
           ClockEvents[cfg.setter](Auth.member, todayStr(), record);
+          if (kind === 'start' && pendingDailyCommit) {
+            DailyCommitCache.set(Auth.member, todayStr(), pendingDailyCommit);
+            pendingDailyCommit = null;
+          }
           renderClockStatus(kind, record);
           showToast(res.hasLocation ? `✓ ${res.time}に${cfg.verb}（位置情報を記録しました）` : `✓ ${res.time}に${cfg.verb}（位置情報は取得できませんでした）`, false);
         })
@@ -1854,7 +1941,9 @@ const Sales = (() => {
     const locLabel = record.hasLocation
       ? `<a href="${record.mapsLink}" target="_blank" rel="noopener">地図で確認</a>`
       : '位置情報なし';
-    wrap.innerHTML = `✓ ${escapeHtml(record.time)} に${cfg.verb}（${locLabel}）`;
+    const dc = kind === 'start' ? DailyCommitCache.get(Auth.member, todayStr()) : null;
+    wrap.innerHTML = `✓ ${escapeHtml(record.time)} に${cfg.verb}（${locLabel}）` +
+      (dc ? `<br>今日のコミット: 申請${dc.apply}件・後確通過${dc.post}件` : '');
   }
 
   /* ---------- 入力タブ: 操作 ---------- */
@@ -2076,7 +2165,8 @@ const Sales = (() => {
   function renderGoal(summary, tgt) {
     const wrap = document.getElementById('goalWrap');
     if (!tgt || (!tgt.apply && !tgt.postConfirm)) {
-      wrap.innerHTML = '<p style="margin:0; font-size:12.5px; color:var(--ink-3)">今月の目標が未設定です（数字分析の「目標を編集」で設定できます）</p>';
+      wrap.innerHTML = '<p style="margin:0 0 10px; font-size:12.5px; color:var(--ink-2)">今月のコミットがまだ宣言されていません。月初に自分の数字を宣言しましょう（宣言後は変更できません）。</p>' +
+        '<button type="button" class="btn-primary" onclick="Sales.openMonthCommit()">今月のコミットを宣言する</button>';
       return;
     }
     const bar = (label, cur, target) => {
@@ -2113,7 +2203,7 @@ const Sales = (() => {
     var wrap = document.getElementById('homeActionWrap');
     if (!wrap) return;
     if (!tgt || (!tgt.apply && !tgt.postConfirm)) {
-      wrap.innerHTML = '<div class="ap-mini">今月の目標が未設定です。数字分析の「目標を編集」で申請数・後確通過数を設定すると、毎日の逆算アクションがここに出ます。</div>';
+      wrap.innerHTML = '<div class="ap-mini">今月のコミットを宣言すると、毎日の逆算アクションがここに出ます。</div>';
       return;
     }
     var p = computeGoalPlan_(summary, tgt.apply || 0, tgt.postConfirm || 0);
@@ -2131,6 +2221,48 @@ const Sales = (() => {
       '<div class="ap-mini">' + back +
       '月間目標まで 申請あと<b>' + p.remainApply + '</b>件・後確あと<b>' + p.remainPost + '</b>件（残り' + p.remaining + '営業日） ' +
       '<span class="ap-badge ' + cls + '">ペース ' + sign + p.pacePt + 'pt</span></div>';
+  }
+
+  /* ---------- 月次コミット宣言（本人のみ・変更不可） ---------- */
+  function openMonthCommit() {
+    document.getElementById('mcErr').hidden = true;
+    document.getElementById('mcName').textContent = Auth.member;
+    const parts = currentPeriod().split('-');
+    document.getElementById('mcMonthLabel').textContent = Number(parts[0]) + '年' + Number(parts[1]) + '月';
+    document.getElementById('mcApply').value = '';
+    document.getElementById('mcPost').value = '';
+    document.getElementById('mcVeil').hidden = false;
+    document.getElementById('mcModal').hidden = false;
+  }
+  function closeMonthCommit() {
+    document.getElementById('mcVeil').hidden = true;
+    document.getElementById('mcModal').hidden = true;
+  }
+  async function saveMonthCommit() {
+    const btn = document.getElementById('mcSaveBtn');
+    const err = document.getElementById('mcErr');
+    err.hidden = true;
+    const apply = Number(document.getElementById('mcApply').value) || 0;
+    const post = Number(document.getElementById('mcPost').value) || 0;
+    if (!apply && !post) {
+      err.textContent = '申請・後確通過のコミットを入力してください';
+      err.hidden = false;
+      return;
+    }
+    btn.disabled = true; btn.textContent = '宣言中…';
+    try {
+      const res = await Api.setTarget({ month: currentPeriod(), member: Auth.member, apply, postConfirm: post });
+      if (!res || !res.ok) throw new Error((res && res.message) || '宣言に失敗しました');
+      closeMonthCommit();
+      showToast('✓ 今月のコミットを宣言しました（変更不可）', false);
+      try { localStorage.removeItem(homeCacheKey()); } catch (e) { }
+      renderHome();
+    } catch (e) {
+      err.textContent = e.message || '宣言に失敗しました。電波状況を確認して再試行してください';
+      err.hidden = false;
+    } finally {
+      btn.disabled = false; btn.textContent = '宣言する';
+    }
   }
 
   function deltaBadge(diff, unit) {
@@ -2230,6 +2362,8 @@ const Sales = (() => {
     init, setTab, bump, stepDoko, openConfirm, closeConfirm, submitReport,
     renderHome, renderHistory, dismissInstallHint, flushQueue, startWork, endWork,
     recordAcquisition, doLogin, signOut, checkDayRollover,
+    openMonthCommit, closeMonthCommit, saveMonthCommit,
+    closeDailyCommit, confirmDailyCommit,
   };
 })();
 
@@ -2449,6 +2583,7 @@ const Admin = (() => {
     populateMemberSelect();
     hasLoadedOnce = true;
     renderAll(data.summary, data.daily || [], data.memberSummaries || [], data.clockEvents || []);
+    renderCommitCalendar(data);
     document.getElementById('scopeBadge').textContent = scopeLabel();
   }
 
@@ -2515,6 +2650,7 @@ const Admin = (() => {
     document.getElementById('apBody').innerHTML = skel(90);
     document.getElementById('weekCompare').innerHTML = skel(120);
     document.getElementById('weekdayPerf').innerHTML = skel(120);
+    document.getElementById('commitCal').innerHTML = skel(200);
     document.getElementById('funnel').innerHTML = skel(160);
     document.getElementById('lossBars').innerHTML = skel(100);
     document.getElementById('trendChart').innerHTML = skel(200);
@@ -2559,11 +2695,11 @@ const Admin = (() => {
     }
     if (!tApply && !tPost) {
       scopeEl.textContent = scopeLabel();
-      body.innerHTML = '<p style="margin:0; font-size:12.5px; color:var(--ink-3)">今月の目標が未設定です。右上の「🎯 目標を編集」からメンバーごとの申請数・後確通過数を設定してください。</p>';
+      body.innerHTML = '<p style="margin:0; font-size:12.5px; color:var(--ink-3)">今月のコミットが未宣言です。各メンバーがアプリのホーム画面から「今月のコミットを宣言」すると、ここに逆算プランが出ます。</p>';
       return;
     }
     var p = computeGoalPlan_(summary, tApply, tPost);
-    scopeEl.textContent = scopeLabel() + '・今月の目標 申請' + fmt(tApply) + '件 / 後確通過' + fmt(tPost) + '件（残り' + p.remaining + '営業日）';
+    scopeEl.textContent = scopeLabel() + '・今月のコミット 申請' + fmt(tApply) + '件 / 後確通過' + fmt(tPost) + '件（残り' + p.remaining + '営業日）';
     var chips =
       '<div class="ap-chips">' +
       '<div class="ap-chip"><div class="k">今週やり切る数字</div><div class="v">申請' + fmt(p.weekApply) + '件</div><div class="s">残り' + p.weekRemaining + '営業日 × ' + fmt(p.perDayApply) + '件/日</div></div>' +
@@ -2587,76 +2723,53 @@ const Admin = (() => {
       chips;
   }
 
-  /* ---------- 目標編集モーダル ---------- */
-  function monthChoices_() {
-    const now = new Date();
-    return [-1, 0, 1].map(offset => {
-      const d = new Date(now.getFullYear(), now.getMonth() + offset, 1);
-      const v = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
-      const suffix = offset === 0 ? '（当月）' : offset === 1 ? '（来月）' : '';
-      return { v, label: d.getFullYear() + '年' + (d.getMonth() + 1) + '月' + suffix };
+  /* ---------- コミットカレンダー ---------- */
+  function renderCommitCalendar(data) {
+    var el = document.getElementById('commitCal');
+    if (!el) return;
+    // 表示月: 当月/前月はその月、全期間は当月
+    var base = period === 'prevMonth' ? prevMonthStr(currentPeriod()) : currentPeriod();
+    var y = Number(base.slice(0, 4)), mo = Number(base.slice(5, 7));
+    var commits = {};
+    (data.dailyCommits || []).forEach(function (c) {
+      if (!commits[c.date]) commits[c.date] = { apply: 0, post: 0 };
+      commits[c.date].apply += c.apply;
+      commits[c.date].post += c.postConfirm;
     });
-  }
-  function openTargetEditor() {
-    const sel = document.getElementById('tgtMonth');
-    sel.innerHTML = monthChoices_().map(c => `<option value="${c.v}">${escapeHtml(c.label)}</option>`).join('');
-    sel.value = currentPeriod();
-    document.getElementById('tgtErr').hidden = true;
-    document.getElementById('tgtVeil').hidden = false;
-    document.getElementById('tgtModal').hidden = false;
-    loadTargetEditor();
-  }
-  function closeTargetEditor() {
-    document.getElementById('tgtVeil').hidden = true;
-    document.getElementById('tgtModal').hidden = true;
-  }
-  async function loadTargetEditor() {
-    const month = document.getElementById('tgtMonth').value;
-    const wrap = document.getElementById('tgtRows');
-    wrap.innerHTML = '<div class="skeleton" style="height:120px"></div>';
-    let map = {};
-    try {
-      const res = await Api.getTargets(month);
-      map = (res && res.targets) || {};
-    } catch (e) { /* 未取得でも空欄で編集開始できる */ }
-    const members = (CONFIG.members && CONFIG.members.length) ? CONFIG.members : (Auth.member ? [Auth.member] : []);
-    wrap.innerHTML = members.map(m => {
-      const t = map[m] || {};
-      return `<div class="tgt-row" data-member="${escapeHtml(m)}">
-        <span class="name">${escapeHtml(m)}</span>
-        <input type="number" inputmode="numeric" min="0" class="tgt-apply" value="${t.apply || ''}" placeholder="0" aria-label="${escapeHtml(m)}の申請目標">
-        <input type="number" inputmode="numeric" min="0" class="tgt-post" value="${t.postConfirm || ''}" placeholder="0" aria-label="${escapeHtml(m)}の後確通過目標">
-      </div>`;
-    }).join('');
-  }
-  async function saveTargets() {
-    const btn = document.getElementById('tgtSaveBtn');
-    const err = document.getElementById('tgtErr');
-    err.hidden = true;
-    const month = document.getElementById('tgtMonth').value;
-    const rows = Array.from(document.querySelectorAll('#tgtRows .tgt-row'));
-    btn.disabled = true; btn.textContent = '保存中…';
-    try {
-      for (const row of rows) {
-        const res = await Api.setTarget({
-          month,
-          member: row.dataset.member,
-          apply: Number(row.querySelector('.tgt-apply').value) || 0,
-          postConfirm: Number(row.querySelector('.tgt-post').value) || 0,
-        });
-        if (!res || !res.ok) throw new Error((res && res.message) || '保存に失敗しました');
+    var actuals = {};
+    (data.daily || []).forEach(function (r) {
+      actuals[r.date] = { apply: r.applyItems || 0, post: r.postConfirm || 0 };
+    });
+    var today = todayStr();
+    var dim = new Date(y, mo, 0).getDate();
+    var firstDow = (new Date(y, mo - 1, 1).getDay() + 6) % 7; // 月曜はじまり
+    var names = ['月', '火', '水', '木', '金', '土', '日'];
+    var html = '<div class="cal-grid cal-head">' + names.map(function (n) { return '<span>' + n + '</span>'; }).join('') + '</div><div class="cal-grid">';
+    for (var i = 0; i < firstDow; i++) html += '<div class="cal-day empty"></div>';
+    for (var d = 1; d <= dim; d++) {
+      var ds = base + '-' + (d < 10 ? '0' + d : d);
+      var c = commits[ds], a = actuals[ds];
+      var cls = 'cal-day';
+      if (ds === today) cls += ' today';
+      if (ds > today) {
+        cls += ' future';
+      } else if (c) {
+        var hit = (a ? a.apply : 0) >= c.apply && (a ? a.post : 0) >= c.post;
+        if (hit) cls += ' ok';
+        else if (ds !== today) cls += ' miss'; // 当日は日報送信前なので未達判定しない
       }
-      closeTargetEditor();
-      refresh(); // 保存後に全パネルを再計算
-    } catch (e) {
-      err.textContent = e.message || '保存に失敗しました。電波状況を確認して再試行してください';
-      err.hidden = false;
-    } finally {
-      btn.disabled = false; btn.textContent = '保存';
+      var body = '';
+      if (c || a) {
+        body = '<span class="cal-val">申 ' + (a ? a.apply : 0) + '/' + (c ? c.apply : '—') + '</span>' +
+               '<span class="cal-val post">後 ' + (a ? a.post : 0) + '/' + (c ? c.post : '—') + '</span>';
+      }
+      html += '<div class="' + cls + '"><span class="cal-num">' + d + '</span>' + body + '</div>';
     }
+    html += '</div>';
+    el.innerHTML = html;
   }
 
-    /* ---------- 今週 vs 先週 ---------- */
+  /* ---------- 今週 vs 先週 ---------- */
   function ymdOf_(d) {
     var pad = function (n) { return String(n).padStart(2, '0'); };
     return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate());
@@ -3060,7 +3173,7 @@ const Admin = (() => {
       <button class="btn-ghost" style="margin-top:8px" onclick="Admin.init()">再試行</button></div>`;
   }
 
-  return { init, stop, setPeriod, setMember, toggleTable, openTargetEditor, closeTargetEditor, loadTargetEditor, saveTargets };
+  return { init, stop, setPeriod, setMember, toggleTable };
 })();
 
 </script>
