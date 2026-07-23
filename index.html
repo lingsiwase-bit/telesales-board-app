@@ -685,7 +685,7 @@ tr.member-row.is-selected td{background:var(--accent-soft)}
       </div>
     </div>
     <div style="display:flex; align-items:center; gap:8px">
-      <span style="font-size:10px; color:var(--ink-3); font-weight:700; letter-spacing:.04em">v17</span>
+      <span style="font-size:10px; color:var(--ink-3); font-weight:700; letter-spacing:.04em">v18</span>
       <span class="sync-pill" id="syncPill">同期済み</span>
       <button type="button" onclick="Sales.signOut()" aria-label="ログアウト" title="ログアウト"
               style="border:none; background:transparent; color:var(--ink-3); font-size:12px; padding:6px; cursor:pointer">ログアウト</button>
@@ -1314,6 +1314,14 @@ const Api = {
   getTargets(period) {
     return callApi('GET', 'targets', { params: { period } });
   },
+  // 一括取得（高速化）: ダッシュボード全パネル分を1リクエストで
+  getDashboard(period, member) {
+    return callApi('GET', 'dashboard', { params: { period, member } });
+  },
+  // 営業ホーム用: 自分のsummary+目標+configを1リクエストで
+  getHome() {
+    return callApi('GET', 'home');
+  },
   setTarget(payload) {
     return callApi('POST', 'setTarget', { body: payload });
   },
@@ -1354,6 +1362,22 @@ const Sales = (() => {
     // 未ログイン（コード未入力）ならログイン画面を出して待つ
     if (!authToken()) {
       showLogin('担当コードを入力してください');
+      return;
+    }
+
+    // 高速起動: 前回ログイン済みなら即アプリを表示し、認証はバックグラウンドで再検証する
+    // （無効化されたコードは検証後にログイン画面へ戻す。書き込み系は毎回サーバ側で認可される）
+    if (Auth.loadCached()) {
+      showApp();
+      flushQueue();
+      Api.whoami().then(identity => {
+        if (!identity || !identity.authorized) {
+          Auth.signOut();
+          showLogin('担当コードが無効になりました。管理者にご確認ください');
+        } else {
+          Auth.setFromWhoami(identity);
+        }
+      }).catch(() => { /* オフライン時は前回情報のまま継続 */ });
       return;
     }
 
@@ -1532,11 +1556,19 @@ const Sales = (() => {
   }
 
   async function loadConfig() {
+    // 前回取得したconfigを即時反映（業種チップが一瞬で出る）→ 裏で最新化
+    try {
+      const cached = JSON.parse(localStorage.getItem('configCache') || 'null');
+      if (cached && cached.industries) { CONFIG = cached; buildIndustryChips(); }
+    } catch (e) { /* キャッシュ破損は無視 */ }
     try {
       const res = await Api.getConfig();
-      if (res && res.industries) CONFIG = res;
+      if (res && res.industries) {
+        CONFIG = res;
+        localStorage.setItem('configCache', JSON.stringify(res));
+      }
     } catch (e) {
-      // 未設定・オフライン時は§3.4のデフォルトのまま動作を継続する
+      // 未設定・オフライン時はキャッシュ/デフォルトのまま動作を継続する
     }
   }
 
@@ -1999,28 +2031,45 @@ const Sales = (() => {
   }
 
   /* ---------- ホームタブ ---------- */
+  function homeCacheKey() { return 'homeCache:' + Auth.member + ':' + currentPeriod(); }
+
+  function paintHome(res) {
+    if (res.config && res.config.industries) CONFIG = res.config;
+    const myTgt = res.target || null;
+    renderGoal(res.summary, myTgt);
+    renderMonthSelf(res.summary);
+    renderHomeAction(res.summary, myTgt);
+  }
+
   async function renderHome() {
     syncHomeLiveTiles();
     const goalWrap = document.getElementById('goalWrap');
     const selfWrap = document.getElementById('monthSelfWrap');
-    goalWrap.innerHTML = '<div class="skeleton" style="height:38px"></div>';
-    selfWrap.innerHTML = '<div class="skeleton" style="height:70px"></div>';
-    document.getElementById('homeActionWrap').innerHTML = '<div class="skeleton" style="height:56px"></div>';
     renderReminder();
+    // 前回表示を即描画（体感ゼロ秒）→ 裏で最新データに置き換え（1リクエスト）
+    let painted = false;
     try {
-      const [summary, tgtRes] = await Promise.all([
-        Api.getSummary(currentPeriod()),
-        Api.getTargets(currentPeriod()).catch(() => null),
-      ]);
-      const myTgt = tgtRes && tgtRes.targets ? tgtRes.targets[Auth.member] : null;
-      renderGoal(summary, myTgt);
-      renderMonthSelf(summary);
-      renderHomeAction(summary, myTgt);
+      const cached = JSON.parse(localStorage.getItem(homeCacheKey()) || 'null');
+      if (cached && cached.summary) { paintHome(cached); painted = true; }
+    } catch (e) { /* キャッシュ破損は無視 */ }
+    if (!painted) {
+      goalWrap.innerHTML = '<div class="skeleton" style="height:38px"></div>';
+      selfWrap.innerHTML = '<div class="skeleton" style="height:70px"></div>';
+      document.getElementById('homeActionWrap').innerHTML = '<div class="skeleton" style="height:56px"></div>';
+    }
+    try {
+      const res = await Api.getHome();
+      if (res && res.summary) {
+        try { localStorage.setItem(homeCacheKey(), JSON.stringify(res)); } catch (e) { }
+        paintHome(res);
+      }
     } catch (e) {
-      const msg = e.message || 'シートに接続できませんでした。電波状況を確認して再試行してください';
-      goalWrap.innerHTML = renderErrorCard(msg, 'Sales.renderHome()');
-      selfWrap.innerHTML = '';
-      document.getElementById('homeActionWrap').innerHTML = '';
+      if (!painted) {
+        const msg = e.message || 'シートに接続できませんでした。電波状況を確認して再試行してください';
+        goalWrap.innerHTML = renderErrorCard(msg, 'Sales.renderHome()');
+        selfWrap.innerHTML = '';
+        document.getElementById('homeActionWrap').innerHTML = '';
+      }
     }
   }
 
@@ -2394,31 +2443,41 @@ const Admin = (() => {
 
   function scopeLabel() { return selectedMember || '全体'; }
 
+  function renderDashboard(data) {
+    CONFIG = data.config || CONFIG;
+    TARGETS = data.targets || {};
+    populateMemberSelect();
+    hasLoadedOnce = true;
+    renderAll(data.summary, data.daily || [], data.memberSummaries || [], data.clockEvents || []);
+    document.getElementById('scopeBadge').textContent = scopeLabel();
+  }
+
   async function refresh() {
-    if (!hasLoadedOnce) showSkeleton();
+    const apiPeriod = periodToApiParam(period);
+    const scope = selectedMember || undefined; // 全パネルをこのメンバーに絞る
+    const cacheKey = 'dashCache:' + (apiPeriod || 'all') + ':' + (scope || '全体');
+    if (!hasLoadedOnce) {
+      // 前回表示のキャッシュがあれば即描画（体感ゼロ秒）→ 裏で最新化
+      let cached = null;
+      try { cached = JSON.parse(localStorage.getItem(cacheKey) || 'null'); } catch (e) { }
+      if (cached && cached.summary) {
+        renderDashboard(cached);
+        document.getElementById('lastUpdated').textContent = '更新中…';
+      } else {
+        showSkeleton();
+      }
+    }
     try {
-      const apiPeriod = periodToApiParam(period);
-      const scope = selectedMember || undefined; // 全パネルをこのメンバーに絞る
-      const [summary, daily, config, clockEvents, targetsRes] = await Promise.all([
-        Api.getSummary(apiPeriod, scope),
-        Api.getDaily(apiPeriod, scope),
-        Api.getConfig(),
-        Api.getClockEvents(apiPeriod, scope),
-        Api.getTargets(apiPeriod || currentPeriod()).catch(() => ({ targets: {} })),
-      ]);
-      CONFIG = config || CONFIG;
-      TARGETS = (targetsRes && targetsRes.targets) || {};
-      populateMemberSelect();
-      // メンバー別サマリー表は常に全員分を表示（比較＋ドリルイン導線）
-      const memberSummaries = await Promise.all(
-        (CONFIG.members || []).map(id => Api.getSummary(apiPeriod, id).then(s => ({ id, summary: s })))
-      );
-      hasLoadedOnce = true;
-      renderAll(summary, daily.rows || [], memberSummaries, clockEvents.rows || []);
-      document.getElementById('scopeBadge').textContent = scopeLabel();
+      // 一括APIで1リクエスト取得（旧: 8リクエスト直列で数秒〜10秒かかっていた）
+      const data = await Api.getDashboard(apiPeriod, scope);
+      if (!data || !data.summary) {
+        throw new ApiError('SERVER_ERROR', (data && data.message) || 'データを取得できませんでした');
+      }
+      try { localStorage.setItem(cacheKey, JSON.stringify(data)); } catch (e) { }
+      renderDashboard(data);
       document.getElementById('lastUpdated').textContent = formatTime(new Date());
     } catch (e) {
-      renderError(e);
+      if (!hasLoadedOnce) renderError(e);
     }
   }
 
