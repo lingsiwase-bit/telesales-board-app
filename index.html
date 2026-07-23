@@ -705,7 +705,7 @@ tr.member-row.is-selected td{background:var(--accent-soft)}
       </div>
     </div>
     <div style="display:flex; align-items:center; gap:8px">
-      <span id="appVer" style="font-size:10px; color:var(--ink-3); font-weight:700; letter-spacing:.04em">v24</span>
+      <span id="appVer" style="font-size:10px; color:var(--ink-3); font-weight:700; letter-spacing:.04em">v25</span>
       <span class="sync-pill" id="syncPill">同期済み</span>
       <button type="button" onclick="Sales.signOut()" aria-label="ログアウト" title="ログアウト"
               style="border:none; background:transparent; color:var(--ink-3); font-size:12px; padding:6px; cursor:pointer">ログアウト</button>
@@ -1428,6 +1428,7 @@ const Sales = (() => {
           showLogin('担当コードが無効になりました。管理者にご確認ください');
         } else {
           Auth.setFromWhoami(identity);
+          App.applyRoleUI();
         }
       }).catch(() => { /* オフライン時は前回情報のまま継続 */ });
       return;
@@ -1592,8 +1593,8 @@ const Sales = (() => {
 
     maybeShowInstallHint();
 
-    // 管理者ロール（営業に含めない）はログイン後すぐ数字分析を表示する
-    if (!Auth.isSales) App.setRole('admin');
+    // 管理者ロール（営業に含めない）は営業画面を出さず数字分析のみ表示する
+    App.applyRoleUI();
   }
 
   // §8: ホーム画面追加を初回に案内（一度閉じたら再表示しない）
@@ -3211,7 +3212,14 @@ const App = (() => {
       Admin.stop(); // 非表示中は60秒ポーリングを止める
     }
   }
-  return { setRole };
+  // 管理者ロール(:manager)は営業画面が不要: ロール切替トグルごと隠して数字分析のみ表示
+  function applyRoleUI() {
+    if (Auth.isSales) return;
+    const seg = document.querySelector('.appbar .seg');
+    if (seg) seg.hidden = true;
+    setRole('admin');
+  }
+  return { setRole, applyRoleUI };
 })();
 
 </script>
