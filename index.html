@@ -670,7 +670,7 @@ tr.member-row.is-selected td{background:var(--accent-soft)}
       </div>
     </div>
     <div style="display:flex; align-items:center; gap:8px">
-      <span style="font-size:10px; color:var(--ink-3); font-weight:700; letter-spacing:.04em">v15</span>
+      <span style="font-size:10px; color:var(--ink-3); font-weight:700; letter-spacing:.04em">v16</span>
       <span class="sync-pill" id="syncPill">同期済み</span>
       <button type="button" onclick="Sales.signOut()" aria-label="ログアウト" title="ログアウト"
               style="border:none; background:transparent; color:var(--ink-3); font-size:12px; padding:6px; cursor:pointer">ログアウト</button>
@@ -1983,7 +1983,7 @@ const Sales = (() => {
   }
 
   function renderGoal(summary) {
-    const target = (CONFIG.targets && CONFIG.targets.visits) || DEFAULT_TARGET_VISITS;
+    const target = targetForMember_(CONFIG, Auth.member); // 自分の目標（メンバー別対応）
     const visits = summary.totals.visits;
     const pct = target ? Math.min(100, Math.round(100 * visits / target)) : 0;
     document.getElementById('goalWrap').innerHTML = `
@@ -2011,8 +2011,7 @@ const Sales = (() => {
   function renderHomeAction(summary) {
     var wrap = document.getElementById('homeActionWrap');
     if (!wrap) return;
-    var target = (CONFIG.targets && CONFIG.targets.visits) || DEFAULT_TARGET_VISITS;
-    var p = computeActionPlan_(summary, target, 1);
+    var p = computeActionPlan_(summary, targetForMember_(CONFIG, Auth.member), 1);
     if (p.done) {
       wrap.innerHTML = '<div class="ap-directive">🎉 月間目標クリア！このまま上積みしましょう</div>' +
         '<div class="ap-mini">着地予測 <b>' + p.forecastVisits + '</b>件（目標' + p.target + '件）</div>';
@@ -2225,6 +2224,14 @@ function workdaysInfo_(now) {
   return { total: total, remaining: remaining, elapsedIncl: elapsedIncl, weekRemaining: Math.max(1, weekRemaining) };
 }
 
+// メンバー別の月間目標。Config `memberTargets`（名前=件数）を優先し、無ければ targetVisits
+function targetForMember_(config, member) {
+  var mt = config && config.memberTargets;
+  var t = mt && member && mt[member];
+  if (isFinite(t) && t > 0) return Number(t);
+  return (config && config.targets && config.targets.visits) || DEFAULT_TARGET_VISITS;
+}
+
 // summary（当月）と目標から「今日やる数字」を逆算する。
 // 転換率は当月実績、実績ゼロの段は現実的な既定値(突破30%/商談化30%/受注15%)で補完
 function computeActionPlan_(summary, targetVisits, scopeCount, now) {
@@ -2421,9 +2428,13 @@ const Admin = (() => {
       body.innerHTML = '<p style="margin:0; font-size:12.5px; color:var(--ink-3)">「当月」表示のときに今日のアクションを計算します</p>';
       return;
     }
-    var scopeCount = selectedMember ? 1 : Math.max(1, (CONFIG.members || []).length);
-    var target = (CONFIG.targets && CONFIG.targets.visits) || DEFAULT_TARGET_VISITS;
-    var p = computeActionPlan_(summary, target, scopeCount);
+    // 担当者絞り込み時はその人の目標、全体は各メンバー目標の合計
+    var targetTotal = selectedMember
+      ? targetForMember_(CONFIG, selectedMember)
+      : ((CONFIG.members && CONFIG.members.length)
+          ? CONFIG.members.reduce(function (sum, m) { return sum + targetForMember_(CONFIG, m); }, 0)
+          : ((CONFIG.targets && CONFIG.targets.visits) || DEFAULT_TARGET_VISITS));
+    var p = computeActionPlan_(summary, targetTotal, 1);
     scopeEl.textContent = scopeLabel() + '・月間目標 飛び込み' + fmt(p.target) + '件（平日換算・残り' + p.remaining + '営業日）';
     var chips =
       '<div class="ap-chips">' +
@@ -2700,7 +2711,6 @@ const Admin = (() => {
 
   /* ---------- メンバー別サマリー（Phase3: Configのmembersごとに実データを集計） ---------- */
   function renderMemberTable(memberSummaries) {
-    const target = (CONFIG.targets && CONFIG.targets.visits) || DEFAULT_TARGET_VISITS;
     if (!memberSummaries || !memberSummaries.length) {
       document.getElementById('memberBody').innerHTML =
         '<tr><td colspan="8" style="text-align:center; color:var(--ink-3)">メンバーが登録されていません（Configシートのmembersを確認）</td></tr>';
@@ -2713,6 +2723,7 @@ const Admin = (() => {
       (b.summary.totals.visits - a.summary.totals.visits));
     document.getElementById('memberBody').innerHTML = ranked.map(({ id, summary }, i) => {
       const rate = summary.rates.breakthroughRate;
+      const target = targetForMember_(CONFIG, id); // メンバー別目標
       const goal = target ? Math.min(100, Math.round(100 * summary.totals.visits / target)) : 0;
       const selCls = id === selectedMember ? ' is-selected' : '';
       return `<tr class="member-row${selCls}" onclick="Admin.setMember('${escapeHtml(id)}')" title="クリックで${escapeHtml(id)}に絞り込み">
