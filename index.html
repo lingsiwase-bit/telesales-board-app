@@ -221,7 +221,7 @@ input[type="time"]::-webkit-date-and-time-value{
 .card-note{margin:-10px 0 14px; font-size:12px; color:var(--ink-3); line-height:1.5}
 
 /* tally */
-.rate-strip{display:flex; gap:10px; margin:0 0 12px}
+.rate-strip{display:flex; gap:10px; margin:16px 0}
 .rate-chip{
   flex:1; border-radius:18px; padding:12px; text-align:center;
   background:var(--surface); border:1px solid var(--glass-border); box-shadow:var(--shadow);
@@ -649,6 +649,9 @@ tr.member-row.is-selected td{background:var(--accent-soft)}
 .tgt-row .name{font-size:13.5px; font-weight:700}
 .tgt-row input{width:100%; min-width:0; padding:9px 10px; border:1px solid var(--line); border-radius:10px; background:var(--surface-3); font-size:16px; font-weight:700; text-align:center; font-variant-numeric:tabular-nums}
 
+/* 画面直下のヒーロータイル（本日3指標）とカードの間隔を揃える */
+.phone-body .screen > .hero-tiles{margin-bottom:16px}
+
 /* コミットカレンダー */
 .cal-grid{display:grid; grid-template-columns:repeat(7,1fr); gap:6px}
 .cal-grid > *{min-width:0}
@@ -702,7 +705,7 @@ tr.member-row.is-selected td{background:var(--accent-soft)}
       </div>
     </div>
     <div style="display:flex; align-items:center; gap:8px">
-      <span style="font-size:10px; color:var(--ink-3); font-weight:700; letter-spacing:.04em">v20</span>
+      <span style="font-size:10px; color:var(--ink-3); font-weight:700; letter-spacing:.04em">v21</span>
       <span class="sync-pill" id="syncPill">同期済み</span>
       <button type="button" onclick="Sales.signOut()" aria-label="ログアウト" title="ログアウト"
               style="border:none; background:transparent; color:var(--ink-3); font-size:12px; padding:6px; cursor:pointer">ログアウト</button>
@@ -783,7 +786,7 @@ tr.member-row.is-selected td{background:var(--accent-soft)}
         <div class="acq-list" id="acqList"></div>
       </div>
 
-      <div class="rate-strip" style="margin-top:12px">
+      <div class="rate-strip">
         <div class="rate-chip"><b id="liveToppa">—</b><span>突破率（本日）</span></div>
         <div class="rate-chip"><b id="liveShodan">—</b><span>商談化率（本日）</span></div>
       </div>
@@ -801,12 +804,6 @@ tr.member-row.is-selected td{background:var(--accent-soft)}
       <div class="card section">
         <p class="card-title">状態の変化</p>
         <div id="stateSteppers"></div>
-      </div>
-
-      <div class="card section">
-        <p class="card-title">本日申請した業種</p>
-        <div class="chip-wrap" id="indChips"></div>
-        <input type="text" class="chip-free-input" id="indOther" placeholder="業種を入力" hidden>
       </div>
 
       <div class="submit-bar"><button class="btn-primary" id="submitOpenBtn" onclick="Sales.openConfirm()">内容を確認して送信</button></div>
@@ -1024,13 +1021,11 @@ const TALLY_DEFS = [
 ];
 
 // §3.2 results と1:1対応
+// 2026-07-23 ユーザー指示で削減: 申請社数・受注社数/件数・マッチング社数は入力廃止
+// （シート列は維持し0で送信。受注はアプリの「獲得（成約）報告」で別ブックに記録する運用）
 const RESULT_DEFS = [
-  { k: 'applyCompanies', label: '申請', sub: '社数' },
   { k: 'applyItems', label: '申請', sub: '件数' },
-  { k: 'orderCompanies', label: '受注', sub: '社数' },
-  { k: 'orderItems', label: '受注', sub: '件数' },
   { k: 'postConfirm', label: '後確通過', sub: '件数' },
-  { k: 'matchCompanies', label: 'マッチング', sub: '社数' },
   { k: 'matchItems', label: 'マッチング', sub: '件数' },
 ];
 
@@ -1039,7 +1034,6 @@ const STATE_DEFS = [
   { k: 'cancels', label: 'キャンセル' },
   { k: 'lost', label: '失注' },
   { k: 'prospects', label: '見込み' },
-  { k: 'prospectOrders', label: '見込み受注社数' },
 ];
 
 // GET /config 取得までのフォールバック（§3.4）。ハードコードは初期表示用のみ
@@ -1695,6 +1689,7 @@ const Sales = (() => {
   function buildIndustryChips() {
     const list = (CONFIG.industries && CONFIG.industries.length) ? CONFIG.industries : DEFAULT_INDUSTRIES;
     const wrap = document.getElementById('indChips');
+    if (!wrap) return; // 業種入力は廃止（2026-07-23）。互換のため関数は残置
     wrap.innerHTML = '';
     list.forEach(name => {
       const btn = document.createElement('button');
@@ -1710,6 +1705,7 @@ const Sales = (() => {
 
   function syncOtherInput() {
     const el = document.getElementById('indOther');
+    if (!el) return; // 業種入力は廃止
     const show = draft.industries.includes('その他');
     el.hidden = !show;
     if (show) {
@@ -1742,6 +1738,12 @@ const Sales = (() => {
   }
 
   function restoreDraftToInputs() {
+    // 打刻済みの時刻を正としてドラフトへ同期する。日報送信後のリセットや日付跨ぎ後に
+    // ドラフトが初期値(09:00/18:00)へ戻り、ホームの打刻表示と食い違うのを防ぐ
+    const events = ClockEvents.get(Auth.member, todayStr());
+    if (events.start && events.start.time) draft.workStart = events.start.time;
+    if (events.end && events.end.time) draft.workEnd = events.end.time;
+    saveDraft();
     document.getElementById('tStart').value = draft.workStart;
     document.getElementById('tEnd').value = draft.workEnd;
     updateWorkedHours();
@@ -1753,7 +1755,6 @@ const Sales = (() => {
     if (dokoEl) dokoEl.textContent = draft.dokoHours;
     buildIndustryChips();
     syncHomeLiveTiles();
-    const events = ClockEvents.get(Auth.member, todayStr());
     renderClockStatus('start', events.start);
     renderClockStatus('end', events.end);
     setAcqDefaults();
@@ -2022,13 +2023,11 @@ const Sales = (() => {
       ['同行した時間', draft.dokoHours + ' h'],
     ];
     TALLY_DEFS.forEach(d => rows.push([d.label, draft[d.k]]));
-    rows.push(['申請', `${draft.applyCompanies}社 / ${draft.applyItems}件`]);
-    rows.push(['受注', `${draft.orderCompanies}社 / ${draft.orderItems}件`]);
+    rows.push(['申請', `${draft.applyItems}件`]);
     rows.push(['後確通過', `${draft.postConfirm}件`]);
-    rows.push(['マッチング', `${draft.matchCompanies}社 / ${draft.matchItems}件`]);
+    rows.push(['マッチング', `${draft.matchItems}件`]);
     rows.push(['キャンセル / 失注', `${draft.cancels} / ${draft.lost}`]);
-    rows.push(['見込み / 見込み受注社数', `${draft.prospects} / ${draft.prospectOrders}`]);
-    rows.push(['申請した業種', resolveIndustries(draft).join('、') || 'なし']);
+    rows.push(['見込み', `${draft.prospects}`]);
 
     // §3.3: breakthrough<=visits, meetings<=breakthrough は警告のみ（送信ブロックしない）
     const warnBreakthrough = draft.breakthrough > draft.visits;
