@@ -702,7 +702,7 @@ tr.member-row.is-selected td{background:var(--accent-soft)}
       </div>
     </div>
     <div style="display:flex; align-items:center; gap:8px">
-      <span style="font-size:10px; color:var(--ink-3); font-weight:700; letter-spacing:.04em">v19</span>
+      <span style="font-size:10px; color:var(--ink-3); font-weight:700; letter-spacing:.04em">v20</span>
       <span class="sync-pill" id="syncPill">同期済み</span>
       <button type="button" onclick="Sales.signOut()" aria-label="ログアウト" title="ログアウト"
               style="border:none; background:transparent; color:var(--ink-3); font-size:12px; padding:6px; cursor:pointer">ログアウト</button>
@@ -711,8 +711,15 @@ tr.member-row.is-selected td{background:var(--accent-soft)}
 
   <main class="phone-body" id="phoneBody">
     <!-- ホーム -->
-    <section class="screen" id="scr-home">
+    <section class="screen active" id="scr-home">
       <div class="s-head"><h2>おつかれさまです 👋</h2><p>今日の活動と今月のペースを確認できます</p></div>
+      <div class="card" id="clockCard">
+        <p class="card-title">稼働打刻</p>
+        <button type="button" class="btn-primary" id="startWorkBtn" onclick="Sales.startWork()" style="margin-bottom:10px">📍 稼働開始（位置情報を記録）</button>
+        <p class="clockin-status" id="clockInStatus" hidden></p>
+        <button type="button" class="btn-endwork" id="endWorkBtn" onclick="Sales.endWork()">🏁 稼働終了（位置情報を記録）</button>
+        <p class="clockin-status" id="clockOutStatus" hidden style="margin-top:10px"></p>
+      </div>
       <div class="card" id="homeActionCard">
         <p class="card-title">今日のアクション</p>
         <div id="homeActionWrap"><div class="skeleton" style="height:56px"></div></div>
@@ -737,21 +744,18 @@ tr.member-row.is-selected td{background:var(--accent-soft)}
     </section>
 
     <!-- 入力 -->
-    <section class="screen active" id="scr-input">
+    <section class="screen" id="scr-input">
       <div class="s-head"><h2>本日の報告</h2><p>現場でその場タップ → 退勤時にまとめて送信</p></div>
 
       <div class="card">
         <p class="card-title">稼働時間</p>
-        <button type="button" class="btn-primary" id="startWorkBtn" onclick="Sales.startWork()" style="margin-bottom:10px">📍 稼働開始（位置情報を記録）</button>
-        <p class="clockin-status" id="clockInStatus" hidden></p>
+        <p class="card-note">打刻はホーム画面の「稼働打刻」から。打刻すると時刻はここに自動反映されます</p>
         <div class="time-grid">
           <div><label>開始</label><input type="time" id="tStart" value="09:00"></div>
           <div class="time-tilde">〜</div>
           <div><label>終了</label><input type="time" id="tEnd" value="18:00"></div>
         </div>
         <div class="worked-hint"><span>稼働時間（自動計算）</span><b id="workedH">9.0 h</b></div>
-        <button type="button" class="btn-endwork" id="endWorkBtn" onclick="Sales.endWork()" style="margin-top:14px">🏁 稼働終了（位置情報を記録）</button>
-        <p class="clockin-status" id="clockOutStatus" hidden></p>
         <p class="field-error" id="timeError" hidden>終了時刻は開始時刻より後にしてください</p>
         <div class="step-row divider">
           <div class="lbl">同行した時間 <small>上長・先輩との同行（h）</small></div>
@@ -830,9 +834,9 @@ tr.member-row.is-selected td{background:var(--accent-soft)}
   <div class="toast" id="toast"></div>
 
   <nav class="tabbar">
-    <button id="tab-home" aria-pressed="false" onclick="Sales.setTab('home')">
+    <button id="tab-home" aria-pressed="true" onclick="Sales.setTab('home')">
       <svg viewBox="0 0 24 24"><path d="M3 11l9-8 9 8"/><path d="M5 10v10h5v-6h4v6h5V10"/></svg>ホーム</button>
-    <button id="tab-input" aria-pressed="true" onclick="Sales.setTab('input')">
+    <button id="tab-input" aria-pressed="false" onclick="Sales.setTab('input')">
       <svg viewBox="0 0 24 24"><rect x="4" y="3" width="16" height="18" rx="3"/><path d="M8 8h8M8 12h8M8 16h5"/></svg>入力</button>
     <button id="tab-history" aria-pressed="false" onclick="Sales.setTab('history')">
       <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>履歴</button>
@@ -1583,7 +1587,7 @@ const Sales = (() => {
     bindTimeInputs();
     restoreDraftToInputs();
     refreshLive();
-    setTab('input');
+    setTab('home'); // 起動はホーム（朝イチで打刻・今日のコミット確認の動線）
 
     await loadConfig();
     buildIndustryChips(); // configロード後に業種マスタを反映
