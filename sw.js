@@ -5,7 +5,7 @@
  * - GAS WebApp(データAPI)へのリクエストはキャッシュしない（別オリジンかつ常に最新が必要）
  * 参照: docs/spec.md §8 PWA要件
  */
-const CACHE_VERSION = 'web-v12';
+const CACHE_VERSION = 'web-v13';
 const CACHE_NAME = 'telesales-board-' + CACHE_VERSION;
 
 const PRECACHE_URLS = [
