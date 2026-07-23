@@ -705,7 +705,7 @@ tr.member-row.is-selected td{background:var(--accent-soft)}
       </div>
     </div>
     <div style="display:flex; align-items:center; gap:8px">
-      <span style="font-size:10px; color:var(--ink-3); font-weight:700; letter-spacing:.04em">v21</span>
+      <span id="appVer" style="font-size:10px; color:var(--ink-3); font-weight:700; letter-spacing:.04em">v23</span>
       <span class="sync-pill" id="syncPill">同期済み</span>
       <button type="button" onclick="Sales.signOut()" aria-label="ログアウト" title="ログアウト"
               style="border:none; background:transparent; color:var(--ink-3); font-size:12px; padding:6px; cursor:pointer">ログアウト</button>
@@ -2222,7 +2222,7 @@ const Sales = (() => {
     wrap.innerHTML =
       '<div class="ap-directive">今日: 申請 <b>' + p.perDayApply + '</b> 件・後確通過 <b>' + p.perDayPost + '</b> 件</div>' +
       '<div class="ap-mini">' + back +
-      '月間目標まで 申請あと<b>' + p.remainApply + '</b>件・後確あと<b>' + p.remainPost + '</b>件（残り' + p.remaining + '営業日） ' +
+      '月間目標まで 申請あと<b>' + p.remainApply + '</b>件・後確あと<b>' + p.remainPost + '</b>件（残り' + p.remaining + '日） ' +
       '<span class="ap-badge ' + cls + '">ペース ' + sign + p.pacePt + 'pt</span></div>';
   }
 
@@ -2372,6 +2372,31 @@ const Sales = (() => {
 
 document.addEventListener('DOMContentLoaded', Sales.init);
 
+// 自動アップデート: PWAは開きっぱなしだと新バージョンが届かない（iOSは完全終了まで
+// 再読み込みされず、GitHub Pagesのキャッシュも最大10分残る）。前面復帰時と10分ごとに
+// 配信中のindex.htmlのバージョン表記を確認し、新しければ安全なタイミングで自動更新する。
+async function checkForUpdate() {
+  try {
+    const cur = Number((document.getElementById('appVer').textContent.match(/v(\d+)/) || [])[1]);
+    if (!cur) return;
+    const res = await fetch('index.html?uc=' + Date.now(), { cache: 'no-store' });
+    if (!res.ok) return;
+    const text = await res.text();
+    const latest = Number((text.match(/id="appVer"[^>]*>v(\d+)</) || [])[1]);
+    if (!latest || latest <= cur) return;
+    // 入力中・モーダル/確認シート表示中は邪魔をしない（次の機会に更新）
+    const sheetOpen = document.getElementById('sheet').classList.contains('open');
+    const dcOpen = !document.getElementById('dcModal').hidden;
+    const mcOpen = !document.getElementById('mcModal').hidden;
+    const el = document.activeElement;
+    const typing = el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA');
+    if (sheetOpen || dcOpen || mcOpen || typing) return;
+    location.reload();
+  } catch (e) { /* オフライン等は無視 */ }
+}
+document.addEventListener('visibilitychange', () => { if (!document.hidden) checkForUpdate(); });
+setInterval(checkForUpdate, 10 * 60 * 1000);
+
 // 日付跨ぎの検出: 前面復帰時（朝の開き直し）と定期チェックの両方で新しい日へ更新する
 document.addEventListener('visibilitychange', () => { if (!document.hidden) Sales.checkDayRollover(); });
 window.addEventListener('focus', () => Sales.checkDayRollover());
@@ -2440,32 +2465,14 @@ function round1_(n) {
 }
 
 /* ---------- 今日のアクションプラン（月間目標からの逆算コーチング） ---------- */
-// 営業日 = 平日(月〜金)換算。土日稼働分は「前倒し貯金」としてペースに有利に働く
+// 個人事業主のため固定休なし: 営業日 = 暦日（毎日）として逆算する
 function workdaysInfo_(now) {
   var y = now.getFullYear(), m = now.getMonth();
   var dim = new Date(y, m + 1, 0).getDate();
-  var total = 0, before = 0;
-  for (var d = 1; d <= dim; d++) {
-    var dow = new Date(y, m, d).getDay();
-    if (dow === 0 || dow === 6) continue;
-    total++;
-    if (d < now.getDate()) before++;
-  }
-  var todayDow = now.getDay();
-  var todayIsWorkday = todayDow !== 0 && todayDow !== 6;
-  // 今日を含む残り営業日（今日が休日なら翌営業日から）
-  var remaining = Math.max(1, total - before);
-  var elapsedIncl = Math.min(total, before + (todayIsWorkday ? 1 : 0));
-  // 今週の残り営業日（今日を含む、日曜まで）
-  var weekRemaining = 0;
-  var cur = new Date(y, m, now.getDate());
-  for (var i = 0; i < 7; i++) {
-    var dw = cur.getDay();
-    if (dw >= 1 && dw <= 5) weekRemaining++;
-    if (dw === 0) break;
-    cur.setDate(cur.getDate() + 1);
-  }
-  return { total: total, remaining: remaining, elapsedIncl: elapsedIncl, weekRemaining: Math.max(1, weekRemaining) };
+  var remaining = Math.max(1, dim - now.getDate() + 1); // 今日を含む残り日数
+  var dow = now.getDay(); // 0=日曜
+  var weekRemaining = dow === 0 ? 1 : (8 - dow); // 今日を含む日曜までの日数
+  return { total: dim, remaining: remaining, elapsedIncl: now.getDate(), weekRemaining: weekRemaining };
 }
 
 // 追う目標は「申請数」と「後確通過数」（Targetsタブ・アプリの「目標を編集」から設定）。
@@ -2702,7 +2709,7 @@ const Admin = (() => {
       return;
     }
     var p = computeGoalPlan_(summary, tApply, tPost);
-    scopeEl.textContent = scopeLabel() + '・今月のコミット 申請' + fmt(tApply) + '件 / 後確通過' + fmt(tPost) + '件（残り' + p.remaining + '営業日）';
+    scopeEl.textContent = scopeLabel() + '・今月のコミット 申請' + fmt(tApply) + '件 / 後確通過' + fmt(tPost) + '件（残り' + p.remaining + '日）';
     var chips =
       '<div class="ap-chips">' +
       '<div class="ap-chip"><div class="k">今週やり切る数字</div><div class="v">申請' + fmt(p.weekApply) + '件</div><div class="s">残り' + p.weekRemaining + '営業日 × ' + fmt(p.perDayApply) + '件/日</div></div>' +
