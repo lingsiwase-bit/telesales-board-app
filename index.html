@@ -705,7 +705,7 @@ tr.member-row.is-selected td{background:var(--accent-soft)}
       </div>
     </div>
     <div style="display:flex; align-items:center; gap:8px">
-      <span id="appVer" style="font-size:10px; color:var(--ink-3); font-weight:700; letter-spacing:.04em">v25</span>
+      <span id="appVer" style="font-size:10px; color:var(--ink-3); font-weight:700; letter-spacing:.04em">v26</span>
       <span class="sync-pill" id="syncPill">同期済み</span>
       <button type="button" onclick="Sales.signOut()" aria-label="ログアウト" title="ログアウト"
               style="border:none; background:transparent; color:var(--ink-3); font-size:12px; padding:6px; cursor:pointer">ログアウト</button>
@@ -901,6 +901,7 @@ tr.member-row.is-selected td{background:var(--accent-soft)}
     <h1>事業部ダッシュボード</h1>
     <span class="scope-badge" id="scopeBadge">全体</span>
     <span class="live">リアルタイム同期・<span id="lastUpdated">—</span></span>
+    <span id="dashVer" style="font-size:10px; color:var(--ink-3); font-weight:700; letter-spacing:.04em"></span>
     <div class="appbar-spacer"></div>
     <label class="member-filter">
       <span class="mf-label">担当者</span>
@@ -2552,6 +2553,10 @@ const Admin = (() => {
   let TARGETS = {}; // 月間目標（Targetsタブ由来・メンバー別 {apply, postConfirm}）
 
   function init() {
+    // バージョン表記（営業ヘッダーの#appVerが正）を数字分析にも出す
+    const ver = document.getElementById('appVer');
+    const dv = document.getElementById('dashVer');
+    if (ver && dv) dv.textContent = ver.textContent;
     // 営業メンバーは自分に絞って表示、管理者ロールは全体を表示する
     selectedMember = Auth.isSales ? (Auth.member || '') : '';
     refresh();
