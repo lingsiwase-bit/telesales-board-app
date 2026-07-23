@@ -705,7 +705,7 @@ tr.member-row.is-selected td{background:var(--accent-soft)}
       </div>
     </div>
     <div style="display:flex; align-items:center; gap:8px">
-      <span id="appVer" style="font-size:10px; color:var(--ink-3); font-weight:700; letter-spacing:.04em">v23</span>
+      <span id="appVer" style="font-size:10px; color:var(--ink-3); font-weight:700; letter-spacing:.04em">v24</span>
       <span class="sync-pill" id="syncPill">同期済み</span>
       <button type="button" onclick="Sales.signOut()" aria-label="ログアウト" title="ログアウト"
               style="border:none; background:transparent; color:var(--ink-3); font-size:12px; padding:6px; cursor:pointer">ログアウト</button>
@@ -1148,19 +1148,22 @@ const Auth = {
   get member() { return this._identity ? this._identity.member : (localStorage.getItem('auth:member') || ''); },
   get memberName() { return this.member; },
   get isAdmin() { return !!(this._identity && this._identity.admin); },
+  // false = 管理者ロール（営業メンバーに含めない）。undefined/trueは営業
+  get isSales() { return !(this._identity && this._identity.sales === false); },
   isAuthorized() { return !!(this._identity && this._identity.authorized); },
   setFromWhoami(identity) {
     this._identity = identity;
     if (identity && identity.member) {
       localStorage.setItem('auth:member', identity.member);
       localStorage.setItem('auth:admin', identity.admin ? '1' : '');
+      localStorage.setItem('auth:sales', identity.sales === false ? '0' : '1');
     }
   },
   // whoami が失敗した場合（オフライン等）に前回ログイン時の情報で暫定続行する
   loadCached() {
     const member = localStorage.getItem('auth:member');
     if (!member) return null;
-    this._identity = { member, authorized: true, admin: localStorage.getItem('auth:admin') === '1' };
+    this._identity = { member, authorized: true, admin: localStorage.getItem('auth:admin') === '1', sales: localStorage.getItem('auth:sales') !== '0' };
     return this._identity;
   },
   signOut() {
@@ -1168,6 +1171,7 @@ const Auth = {
     localStorage.removeItem(TOKEN_KEY);
     localStorage.removeItem('auth:member');
     localStorage.removeItem('auth:admin');
+    localStorage.removeItem('auth:sales');
   },
 };
 
@@ -1587,6 +1591,9 @@ const Sales = (() => {
     buildIndustryChips(); // configロード後に業種マスタを反映
 
     maybeShowInstallHint();
+
+    // 管理者ロール（営業に含めない）はログイン後すぐ数字分析を表示する
+    if (!Auth.isSales) App.setRole('admin');
   }
 
   // §8: ホーム画面追加を初回に案内（一度閉じたら再表示しない）
@@ -2544,8 +2551,8 @@ const Admin = (() => {
   let TARGETS = {}; // 月間目標（Targetsタブ由来・メンバー別 {apply, postConfirm}）
 
   function init() {
-    // ダッシュボードを開いた時は「全体」ではなく自分に絞って表示する
-    selectedMember = Auth.member || '';
+    // 営業メンバーは自分に絞って表示、管理者ロールは全体を表示する
+    selectedMember = Auth.isSales ? (Auth.member || '') : '';
     refresh();
     if (!pollTimer) pollTimer = setInterval(refresh, 60000); // §5.2: ポーリング60秒
   }
@@ -2574,9 +2581,7 @@ const Admin = (() => {
   function populateMemberSelect() {
     const sel = document.getElementById('memberSelect');
     if (!sel) return;
-    const members = (CONFIG.members || []).slice();
-    // 自分は常に選択肢に出す（データ未登録でも自分に絞り込めるように）
-    if (Auth.member && members.indexOf(Auth.member) === -1) members.unshift(Auth.member);
+    const members = (CONFIG.members || []).slice(); // 営業ロールのみ（管理者は含まれない）
     // 選択中メンバーが登録から消えた場合は全体に戻す
     if (selectedMember && members.indexOf(selectedMember) === -1) selectedMember = '';
     const opts = ['<option value="">全体</option>']
