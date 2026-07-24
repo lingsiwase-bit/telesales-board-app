@@ -705,7 +705,7 @@ tr.member-row.is-selected td{background:var(--accent-soft)}
       </div>
     </div>
     <div style="display:flex; align-items:center; gap:8px">
-      <span id="appVer" style="font-size:10px; color:var(--ink-3); font-weight:700; letter-spacing:.04em">v30</span>
+      <span id="appVer" style="font-size:10px; color:var(--ink-3); font-weight:700; letter-spacing:.04em">v31</span>
       <span class="sync-pill" id="syncPill">同期済み</span>
       <button type="button" onclick="Sales.signOut()" aria-label="ログアウト" title="ログアウト"
               style="border:none; background:transparent; color:var(--ink-3); font-size:12px; padding:6px; cursor:pointer">ログアウト</button>
@@ -1420,7 +1420,8 @@ const Sales = (() => {
 
     // 高速起動: 前回ログイン済みなら即アプリを表示し、認証はバックグラウンドで再検証する
     // （無効化されたコードは検証後にログイン画面へ戻す。書き込み系は毎回サーバ側で認可される）
-    if (Auth.loadCached()) {
+    if (Auth.loadCached() && localStorage.getItem('auth:sales') !== null) {
+      // ロール確定済みのときだけ即表示（未確定の初回に管理者へ営業画面が見えるのを防ぐ）
       showApp();
       flushQueue();
       Api.whoami().then(identity => {
@@ -1569,6 +1570,9 @@ const Sales = (() => {
   }
 
   async function showApp() {
+    // 管理者ロールは先に数字分析へ切り替えてから営業画面を裏で組み立てる
+    // （起動時に営業画面が一瞬でも見えないように。トグルで営業画面へはいつでも切替可能）
+    App.applyRoleUI();
     document.getElementById('authShell').hidden = true;
     document.getElementById('appShell').hidden = false;
     renderedDay = todayStr(); // この画面を描画した日付を記録（日付跨ぎ検出用）
